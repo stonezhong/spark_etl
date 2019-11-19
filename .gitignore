@@ -1,0 +1,5 @@
+.idea/
+build/
+dfs_tool.egg-info/
+dist/
+**/*/__pycache__/
