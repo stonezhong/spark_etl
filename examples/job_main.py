@@ -37,6 +37,9 @@ def main():
     # do = etl_engine.get_data_object('hdfs', path, 'parquet')
     # do.to_df().show()
 
+    # let's build a pipeline
+    pipe = 
+
     do = etl_engine.get_data_object('dw', '/sample', 'query')
     do.to_df().show()
 
