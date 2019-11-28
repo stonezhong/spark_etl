@@ -1,10 +1,9 @@
 import uuid
 
 class DataObject(object):
-    def __init__(self, namespace, path, format):
+    def __init__(self, namespace, path):
         self.namespace = namespace
         self.path = path
-        self.format = format
 
     def to_df(self):
         raise NotImplementedError()
@@ -13,12 +12,6 @@ class DataObject(object):
         raise NotImplementedError()
 
 
-class Transformer(object):
-    def __init__(self):
-        pass
-
-    def transform(**kwargs):
-        raise NotImplementedError()
 
 
 class ETLEngine(object):

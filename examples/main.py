@@ -10,6 +10,7 @@ from spark_etl.engine.namespaces import CasperNamespace
 from spark_etl.data_registry import DataObjectInfo
 
 def main():
+    return
     config_dir = os.path.join(
         os.path.expandvars("$ENV_HOME"), 'configs', 'spark_etl_example'
     )

@@ -1,0 +1,15 @@
+Metadata-Version: 2.1
+Name: spark-etl
+Version: 0.0.1
+Summary: Generic ETL Pipeline Framework for Apache Spark
+Home-page: https://github.com/stonezhong/spark_etl
+Author: Stone Zhong
+Author-email: stonezhong@hotmail.com
+License: MIT
+Description: # spark_etl
+        
+Platform: UNKNOWN
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 3
+Description-Content-Type: text/markdown
