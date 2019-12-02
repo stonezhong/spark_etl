@@ -1,16 +1,20 @@
 import uuid
 
-class DataObject(object):
-    def __init__(self, namespace, path):
+class DataDescriptor(object):
+    def __init__(self, namespace):
         self.namespace = namespace
-        self.path = path
 
-    def to_df(self):
+
+class DataObject(object):
+    def __init__(self, driver, data_descriptor=None):
+        self.driver = driver
+        self.data_descriptor = data_descriptor
+
+    def load(self):
         raise NotImplementedError()
 
-    def download(self, local_filename):
+    def show_snippet(self):
         raise NotImplementedError()
-
 
 
 

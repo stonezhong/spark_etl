@@ -1,40 +1,34 @@
 from .base import Namespace
-from ..core import DataObject
+from ..core import DataDescriptor
 
-class SQLDataObject(DataObject):
-    def __init__(self, namespace, path):
-        super(SQLDataObject, self).__init__(namespace, path)
+class SQLDataDescriptor(DataDescriptor):
+    def __init__(self, namespace):
+        super(SQLDataDescriptor, self).__init__(namespace)
 
 
-class SQLTableDataObject(SQLDataObject):
-    def __init__(self, namespace, path, db_name, table_name):
-        super(SQLTableDataObject, self).__init__(namespace, path)
+class SQLTableDataDescriptor(SQLDataDescriptor):
+    def __init__(self, namespace, db_name, table_name):
+        super(SQLTableDataDescriptor, self).__init__(namespace)
         self.db_name = db_name
         self.table_name = table_name
 
 
-class SQLQueryDataObject(SQLDataObject):
-    def __init__(self, namespace, path, query_name, query):
-        super(SQLQueryDataObject, self).__init__(namespace, path)
+class SQLQueryDataDescriptor(SQLDataDescriptor):
+    def __init__(self, namespace, query_name, query):
+        super(SQLQueryDataDescriptor, self).__init__(namespace)
         self.query_name = query_name
         self.query = query
 
 
 class SQLNamespace(Namespace):
-    def __init__(self, name):
+    def __init__(self, name, config={}):
         super(SQLNamespace, self).__init__(name)
-        self.cache = {}
+        self.config=config
     
-    def create_do(self, path, **kwargs):
+    def create_data_descriptor(self, **kwargs):
         if kwargs['type']=='table':
-            do = SQLTableDataObject(self, path, kwargs['db_name'], kwargs['table_name'])
-            self.cache[path] = do
-            return do
+            return SQLTableDataDescriptor(self, kwargs['db_name'], kwargs['table_name'])
 
         if kwargs['type']=='query':
-            do = SQLQueryDataObject(self, path, kwargs['query_name'], kwargs['query'])
-            self.cache[path] = do
-            return do
+            return SQLQueryDataDescriptor(self, kwargs['query_name'], kwargs['query'])
 
-    def do(self, path):
-        return self.cache[path]

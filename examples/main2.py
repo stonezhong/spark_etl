@@ -62,7 +62,7 @@ def main3():
 
 
 
-def main():
+def main4():
     import mysql.connector
     import pandas.io.sql as psql
 
@@ -76,6 +76,32 @@ def main():
 
     df = psql.read_sql("SELECT * FROM etl_demo.states", con=cnx)
     print(df)
+
+def main():
+    from spark_etl.engine.driver.pandas import PandasDriver
+    from spark_etl.engine.namespaces import LFSNamespace, SQLNamespace
+
+    driver = PandasDriver()
+    # lfs_ns = LFSNamespace('default_fs', '/home/stonezhong/temp')
+    # dd = lfs_ns.create_data_descriptor(path='/stock.csv', format='csv')
+    # do = driver.get_data_object(dd)
+    # do.load()
+    # print(do.df)
+    sql_ns = SQLNamespace(
+        'my_sql_server', 
+        config = {
+            'type': 'mysql',
+            'user': 'stonezhong',
+            'password': 'foobar',
+            'host': 'seavh4.deepspace.local',
+            'database': 'etl_demo',
+            'port': 28001
+        }
+    )
+    dd = sql_ns.create_data_descriptor(type='table', db_name='etl_demo', table_name='states')
+    do = driver.get_data_object(dd)
+    do.load()
+    print(do.df)
 
 
 if __name__ == '__main__':
