@@ -1,0 +1,6 @@
+{
+    "version": "0.0.0.1",
+    "name": "sparktest",
+    "entry": "main.py",
+    "use_python3": true
+}

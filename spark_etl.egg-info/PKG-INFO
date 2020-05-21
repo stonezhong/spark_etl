@@ -6,8 +6,7 @@ Home-page: https://github.com/stonezhong/spark_etl
 Author: Stone Zhong
 Author-email: stonezhong@hotmail.com
 License: MIT
-Description: # spark_etl
-        
+Description: [Document](https://docs.google.com/document/d/1WsFENc3c6OAxlhkUQj_PXz1I4h7itVmGDcTz5ebG8qk/edit)
 Platform: UNKNOWN
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Programming Language :: Python :: 2

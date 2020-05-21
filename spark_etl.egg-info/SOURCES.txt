@@ -2,6 +2,8 @@ MANIFEST.in
 README.md
 setup.py
 spark_etl/__init__.py
+spark_etl/data_object.py
+spark_etl/engine.py
 spark_etl.egg-info/PKG-INFO
 spark_etl.egg-info/SOURCES.txt
 spark_etl.egg-info/dependency_links.txt

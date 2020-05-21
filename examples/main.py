@@ -1,71 +1,36 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-from spark_etl.tools import HDFS, Livy
-import json
-import os
+# from spark_etl import ETLEngine
+# from livy_job_submitter import LivyJobSubmitter
 
-from spark_etl import ETLEngine
-from spark_etl.engine.namespaces import CasperNamespace
-from spark_etl.data_registry import DataObjectInfo
+from spark_etl import Application
+from spark_etl.job_submitters.livy_job_submitter import LivyJobSubmitter
+from spark_etl.deployers import HDFSDeployer
 
 def main():
-    return
-    config_dir = os.path.join(
-        os.path.expandvars("$ENV_HOME"), 'configs', 'spark_etl_example'
-    )
+    app = Application("/home/stonezhong/DATA_DISK/projects/spark_etl/examples/myapp")
+    # app.build("/home/stonezhong/DATA_DISK/projects/spark_etl/examples/myapp/build")
 
-    with open(os.path.join(config_dir, 'spark_config.json'), 'rb') as f:
-        spark_config = json.load(f)
+    # let's deploy it
+    deployer = HDFSDeployer({
+        "bridge": "spnode1",
+        "stage_dir": "/root/.stage_dir",
+    })
 
-
-    hdfs = HDFS(
-        spark_config["webhdfs"]["service_url"],
-        username=spark_config["webhdfs"]["username"], 
-        password=spark_config["webhdfs"].get("password"), 
-        hdfs_username=spark_config["webhdfs"]["hdfs_username"],
-        auth_cert=os.path.join(config_dir,spark_config["webhdfs"]['auth_cert']),
-        auth_key=os.path.join(config_dir,spark_config["webhdfs"]['auth_key']),
-        ca_cert=os.path.join(config_dir,spark_config["webhdfs"]['ca_cert']),
-    ) 
-
-    livy = Livy(
-        spark_config["livy"]["service_url"],
-        username=spark_config["livy"]["username"], 
-        password=spark_config["livy"].get("password"), 
-        hdfs_username=spark_config["livy"]["hdfs_username"],
-        auth_cert=os.path.join(config_dir,spark_config["livy"]['auth_cert']),
-        auth_key=os.path.join(config_dir,spark_config["livy"]['auth_key']),
-        ca_cert=os.path.join(config_dir,spark_config["livy"]['ca_cert']),
-    )
-
-    submit_args = {
-        "file": "/hwd/tmp_shizhong/job_main.py",
-        "name": "stonezhong's test",
-        "archives": [ "/hwd/tmp_shizhong/oci.zip#oci" ],
-        "files": [ '/hwd/tmp_shizhong/spark_etl_config.json' ],
-        "pyFiles": [ "/hwd/tmp_shizhong/app.zip", "/hwd/tmp_shizhong/spark_etl.zip" ],
-        "conf": {
-            "spark.ui.view.acls.groups"  : "hwd-osap-admins",
-        },
-    }
-
-    ret = livy.submit_job(**submit_args)
-    print(ret)
-
-    # create and initialize ETL engine
-    # etl_engine = ETLEngine()
-    # etl_engine.register_namespace(CasperNamespace("casper_pulse", "oci-pulse-prod"))
-
-    # do_info = DataObjectInfo(
-    #     namespace_name='casper_pulse',
-    #     path='/IAD/problems/IAD_AD_1/problems/2018/11/1/0/2018-11-01T00:00:18.374Z::bare-metal-stats-01301.node.ad1.us-ashburn-1.json.gz',
-    #     format='raw'
+    # deployer.deploy(
+    #     "/home/stonezhong/DATA_DISK/projects/spark_etl/examples/myapp/build",
+    #     "/apps/myjob/v1.0"
     # )
-    # do = etl_engine.get_data_object(do_info)
-    # do.download('foo.gz')
 
 
+    job_submitter = LivyJobSubmitter({
+        'service_url'   : 'http://10.0.0.11:60008',
+        'username'      : 'root',
+        'password'      : 'foo',
+        'bridge'        : 'spnode1',
+    })
+    job_submitter.run("/apps/myjob/v1.0")
 
 if __name__ == '__main__':
     main()
