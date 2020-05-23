@@ -60,3 +60,4 @@ class Application:
             ])
 
         shutil.copyfile(f"{self.location}/main.py", f"{destination}/main.py")
+        shutil.copyfile(f"{self.location}/manifest.json", f"{destination}/manifest.json")
