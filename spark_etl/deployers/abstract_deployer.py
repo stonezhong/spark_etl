@@ -4,3 +4,4 @@ class AbstractDeployer:
 
     def deploy(self, build_dir, destination_location):
         raise NotImplementedError()
+

@@ -1,7 +1,9 @@
-from .abstract_deployer import AbstractDeployer
 import uuid
 import subprocess
 import os
+
+from .abstract_deployer import AbstractDeployer
+from spark_etl import Build
 
 def _execute(host, cmd, error_ok=False):
     r = subprocess.call(["ssh", "-q", "-t", host, cmd], shell=False)
@@ -23,19 +25,16 @@ class HDFSDeployer(AbstractDeployer):
         bridge = self.config["bridge"]
         _execute(bridge, f"mkdir -p {bridge_dir}")
 
-        subprocess.call([
-            'scp', '-q', f"{build_dir}/app.zip", f"{bridge}:{bridge_dir}/app.zip"
-        ])
-        subprocess.call([
-            'scp', '-q', f"{build_dir}/lib.zip", f"{bridge}:{bridge_dir}/lib.zip"
-        ])
-        subprocess.call([
-            'scp', '-q', f"{build_dir}/main.py", f"{bridge}:{bridge_dir}/main.py"
-        ])
+        build = Build(build_dir)
 
-        _execute(bridge, f"hdfs dfs -rm -r {deployment_location}", error_ok=True)
-        _execute(bridge, f"hdfs dfs -mkdir -p {deployment_location}")
-        _execute(bridge, f"hdfs dfs -copyFromLocal {bridge_dir}/app.zip {deployment_location}/app.zip")
-        _execute(bridge, f"hdfs dfs -copyFromLocal {bridge_dir}/lib.zip {deployment_location}/lib.zip")
-        _execute(bridge, f"hdfs dfs -copyFromLocal {bridge_dir}/main.py {deployment_location}/main.py")
+        for artifact in build.artifacts:
+            subprocess.call([
+                'scp', '-q', f"{build_dir}/{artifact}", f"{bridge}:{bridge_dir}/{artifact}"
+            ])
+
+        dest_location = f"{deployment_location}/{build.version}"
+        _execute(bridge, f"hdfs dfs -rm -r {dest_location}", error_ok=True)
+        _execute(bridge, f"hdfs dfs -mkdir -p {dest_location}")
+        for artifact in build.artifacts:
+            _execute(bridge, f"hdfs dfs -copyFromLocal {bridge_dir}/{artifact} {dest_location}/{artifact}")
         _execute(bridge, f"rm -rf {bridge_dir}")

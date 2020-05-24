@@ -1,9 +1,11 @@
-from requests.auth import HTTPBasicAuth
-import requests
 import json
 import time
-from .abstract_job_submitter import AbstractJobSubmitter
 import subprocess
+
+from requests.auth import HTTPBasicAuth
+import requests
+
+from .abstract_job_submitter import AbstractJobSubmitter
 
 class LivyJobSubmitter(AbstractJobSubmitter):
     def __init__(self, config):
@@ -23,6 +25,9 @@ class LivyJobSubmitter(AbstractJobSubmitter):
         }
 
         service_url = self.config['service_url']
+        if service_url.endswith("/"):
+            service_url = service_url[:-1]
+
         username = self.config['username']
         password = self.config['password']
 

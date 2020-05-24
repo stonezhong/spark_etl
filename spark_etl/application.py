@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 from contextlib import contextmanager, suppress
 import shutil
+import json
 
 @contextmanager
 def _act_in_dir(new_dir):
@@ -25,7 +26,12 @@ class Application:
             The location of the application
         """
         self.location = location
+        with open(f"{self.location}/manifest.json", "r") as f:
+            self.manifest = json.load(f)
 
+    @property
+    def version(self):
+        return self.manifest['version']
 
     def build(self, destination):
         """
