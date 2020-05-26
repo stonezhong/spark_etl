@@ -8,7 +8,7 @@ import tempfile
 import oci
 
 from spark_etl.deployers import AbstractDeployer
-from spark_etl import Build
+from spark_etl import Build, SparkETLDeploymentFailure
 from .tools import check_response, remote_execute, dump_json, get_os_client, get_df_client, os_upload
 
 
@@ -30,9 +30,22 @@ class DataflowDeployer(AbstractDeployer):
         df_client = get_df_client(self.region)
         dataflow = self.config['dataflow']
 
+        display_name = f"{manifest['display_name']}-{manifest['version']}"
+
+        # if the application already exist, we will fail the deployment
+        # since user should bump the version for new deployment
+        r = df_client.list_applications(
+            dataflow['compartment_id'],
+            limit=1,
+            display_name=display_name,
+        )
+        check_response(r, lambda : SparkETLDeploymentFailure("Unable to list application"))
+        if len(r.data) > 0:
+            raise SparkETLDeploymentFailure(f"Application {display_name} already created")
+
         create_application_details = oci.data_flow.models.CreateApplicationDetails(
             compartment_id=dataflow['compartment_id'],
-            display_name=f"{manifest['display_name']}-{manifest['version']}",
+            display_name=display_name,
             driver_shape=dataflow['driver_shape'],
             executor_shape=dataflow['executor_shape'],
             num_executors=dataflow['num_executors'],
@@ -45,14 +58,14 @@ class DataflowDeployer(AbstractDeployer):
         r = df_client.create_application(
             create_application_details=create_application_details
         )
-        check_response(r)
-        # TODO: check if the app with the same version already exist
+        check_response(r, lambda : SparkETLDeploymentFailure("Unable to create dataflow application"))
         return r.data
 
     def deploy(self, build_dir, destination_location):
         o = urlparse(destination_location)
         if o.scheme != 'oci':
-            raise Exception("destination_location must be in OCI")
+            raise SparkETLDeploymentFailure("destination_location must be in OCI")
+        
         namespace = o.netloc.split('@')[1]
         bucket = o.netloc.split('@')[0]
         root_path = o.path[1:]    # remove the leading "/"

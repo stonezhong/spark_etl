@@ -5,6 +5,7 @@ import time
 import oci
 
 from spark_etl.job_submitters import AbstractJobSubmitter
+from spark_etl import SparkETLLaunchFailure, SparkETLGetStatusFailure
 from .tools import check_response, remote_execute, dump_json, get_os_client, get_df_client, os_upload, os_download_json
 
 class DataflowJobSubmitter(AbstractJobSubmitter):
@@ -20,7 +21,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
     def run(self, deployment_location, options):
         o = urlparse(deployment_location)
         if o.scheme != 'oci':
-            raise Exception("location must be in OCI")
+            raise SparkETLLaunchFailure("destination_location must be in OCI")
 
         namespace = o.netloc.split('@')[1]
         bucket = o.netloc.split('@')[0]
@@ -37,7 +38,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
             display_name=options["display_name"],
         )
         r = df_client.create_run(create_run_details=create_run_details)
-        check_response(r)
+        check_response(r, lambda : SparkETLLaunchFailure("dataflow failed to run the application"))
         run = r.data
         run_id = run.id
         print(f"Job launched, run_id = {run_id}")
@@ -45,7 +46,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         while True:
             time.sleep(10)
             r = df_client.get_run(run_id=run.id)
-            check_response(r)
+            check_response(r, lambda : SparkETLGetStatusFailure("dataflow failed to get run status"))
             run = r.data
             print(f"Status: {run.lifecycle_state}")
             if run.lifecycle_state in ('FAILED', 'SUCCEEDED'):
