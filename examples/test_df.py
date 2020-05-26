@@ -10,8 +10,8 @@ def main():
     REGION      = "IAD"
     DEPLOY_DIR  = "oci://dataflow-apps@idrnu3akjpv5/hwd/myjob"
 
-    # print("Build application")
-    # app = Application(APP_DIR)
+    print("Build application")
+    app = Application(APP_DIR)
     # app.build(BUILD_DIR)
 
     # print("Deploy application")

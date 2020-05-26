@@ -8,6 +8,7 @@ import tempfile
 import oci
 
 from spark_etl.deployers import AbstractDeployer
+from spark_etl import Build
 from .tools import check_response, remote_execute, dump_json, get_os_client, get_df_client, os_upload
 
 
@@ -56,22 +57,30 @@ class DataflowDeployer(AbstractDeployer):
         bucket = o.netloc.split('@')[0]
         root_path = o.path[1:]    # remove the leading "/"
 
-        with open(f"{build_dir}/manifest.json") as f:
-            manifest = json.load(f)
+        build = Build(build_dir)
 
-        version = manifest['version']
         print("Uploading files:")
         os_client = get_os_client(self.region)
-        os_upload(os_client, f"{build_dir}/app.zip", namespace, bucket, f"{root_path}/{version}/app.zip")
-        os_upload(os_client, f"{build_dir}/lib.zip", namespace, bucket, f"{root_path}/{version}/lib.zip")
-        os_upload(os_client, f"{build_dir}/main.py", namespace, bucket, f"{root_path}/{version}/main.py")
+        for artifact in build.artifacts:
+            os_upload(
+                os_client, 
+                f"{build_dir}/{artifact}", 
+                namespace, 
+                bucket, 
+                f"{root_path}/{build.version}/{artifact}"
+            )
 
-        application = self.create_application(manifest, destination_location)
+        application = self.create_application(build.manifest, destination_location)
         app_info = {
             "application_id": application.id,
             "compartment_id": application.compartment_id
         }
 
         deployment_filename = dump_json(app_info)
-        os_upload(os_client, deployment_filename, namespace, bucket, f"{root_path}/{version}/deployment.json")
-        
+        os_upload(
+            os_client, 
+            deployment_filename, 
+            namespace, 
+            bucket, 
+            f"{root_path}/{build.version}/deployment.json"
+        )
