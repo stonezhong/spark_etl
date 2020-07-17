@@ -1,5 +1,5 @@
 import os
-from setuptools import setup
+from setuptools import setup, find_packages
 
 # The directory containing this file
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -8,10 +8,17 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(HERE, "README.md"), "r") as f:
     README = f.read()
 
+def my_find_packages(*args, **kwargs):
+    x = find_packages(*args, **kwargs)
+    print("-------------------")
+    print(x)
+    print("-------------------")
+    return x
+
 # This call to setup() does all the work
 setup(
     name="spark-etl",
-    version="0.0.1",
+    version="0.0.2",
     description="Generic ETL Pipeline Framework for Apache Spark",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -24,6 +31,7 @@ setup(
         "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 3",
     ],
-    packages=["spark_etl"],
+    package_dir = {'': 'src'},
+    packages=my_find_packages(where='src'),
     install_requires=["requests", "pywebhdfs", "SQLAlchemy"],
 )

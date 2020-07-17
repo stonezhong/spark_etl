@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: spark-etl
-Version: 0.0.1
+Version: 0.0.2
 Summary: Generic ETL Pipeline Framework for Apache Spark
 Home-page: https://github.com/stonezhong/spark_etl
 Author: Stone Zhong
