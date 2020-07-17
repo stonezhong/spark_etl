@@ -1,6 +1,7 @@
 import json
 import time
 import subprocess
+from urllib.parse import urlparse
 
 from requests.auth import HTTPBasicAuth
 import requests
@@ -11,7 +12,11 @@ class LivyJobSubmitter(AbstractJobSubmitter):
     def __init__(self, config):
         super(LivyJobSubmitter, self).__init__(config)
 
-    def run(self, deployment_location):
+    def run(self, deployment_location, options={}, args={}):
+        o = urlparse(deployment_location)
+        if o.scheme != 'hdfs':
+            raise SparkETLDeploymentFailure("deployment_location must be in hdfs")
+
         headers = {
             "Content-Type": "application/json",
             "X-Requested-By": "root",
@@ -21,7 +26,8 @@ class LivyJobSubmitter(AbstractJobSubmitter):
         print(deployment_location)
 
         config = {
-            'file': f'hdfs://{deployment_location}/main.py',
+            'file': f'{deployment_location}/main.py',
+            'pyFiles': [f'{deployment_location}/app.zip'],
         }
 
         service_url = self.config['service_url']

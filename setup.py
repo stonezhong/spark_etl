@@ -10,7 +10,7 @@ with open(os.path.join(HERE, "README.md"), "r") as f:
 
 # This call to setup() does all the work
 setup(
-    name="spark_etl",
+    name="spark-etl",
     version="0.0.1",
     description="Generic ETL Pipeline Framework for Apache Spark",
     long_description=README,

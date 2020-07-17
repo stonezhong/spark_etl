@@ -1,6 +1,7 @@
 import uuid
 import subprocess
 import os
+from urllib.parse import urlparse
 
 from .abstract_deployer import AbstractDeployer
 from spark_etl import Build
@@ -19,6 +20,10 @@ class HDFSDeployer(AbstractDeployer):
         super(HDFSDeployer, self).__init__(config)
 
     def deploy(self, build_dir, deployment_location):
+        o = urlparse(deployment_location)
+        if o.scheme != 'hdfs':
+            raise SparkETLDeploymentFailure("deployment_location must be in hdfs")
+
         # let's copy files to the stage dir
         bridge_dir = os.path.join(self.config['stage_dir'], str(uuid.uuid4()))
 

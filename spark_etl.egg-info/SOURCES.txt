@@ -3,6 +3,8 @@ README.md
 setup.py
 spark_etl/__init__.py
 spark_etl/application.py
+spark_etl/build.py
+spark_etl/exceptions.py
 spark_etl.egg-info/PKG-INFO
 spark_etl.egg-info/SOURCES.txt
 spark_etl.egg-info/dependency_links.txt

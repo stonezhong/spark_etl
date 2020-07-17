@@ -6,10 +6,11 @@ import json
 import tempfile
 
 import oci
+from oci_core import get_os_client, get_df_client, os_upload, os_upload_json
 
 from spark_etl.deployers import AbstractDeployer
 from spark_etl import Build, SparkETLDeploymentFailure
-from .tools import check_response, remote_execute, dump_json, get_os_client, get_df_client, os_upload
+from .tools import check_response, remote_execute
 
 
 class DataflowDeployer(AbstractDeployer):
@@ -50,8 +51,7 @@ class DataflowDeployer(AbstractDeployer):
             executor_shape=dataflow['executor_shape'],
             num_executors=dataflow['num_executors'],
             spark_version="2.4.4",
-            file_uri=f"{destination_location}/{manifest['version']}/main.py",
-            archive_uri=f"{destination_location}/{manifest['version']}/lib.zip",
+            file_uri=f"{destination_location}/{manifest['version']}/job_loader.py",
             language="PYTHON",
         )
 
@@ -73,6 +73,7 @@ class DataflowDeployer(AbstractDeployer):
         build = Build(build_dir)
 
         print("Uploading files:")
+        # Data flow want to call python lib python.zip
         os_client = get_os_client(self.region)
         for artifact in build.artifacts:
             os_upload(
@@ -82,6 +83,19 @@ class DataflowDeployer(AbstractDeployer):
                 bucket, 
                 f"{root_path}/{build.version}/{artifact}"
             )
+        
+        # let's upload the job loader
+        job_loader_filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            'job_loader.py'
+        )
+        os_upload(
+            os_client, 
+            job_loader_filename, 
+            namespace, 
+            bucket, 
+            f"{root_path}/{build.version}/job_loader.py"
+        )
 
         application = self.create_application(build.manifest, destination_location)
         app_info = {
@@ -89,11 +103,7 @@ class DataflowDeployer(AbstractDeployer):
             "compartment_id": application.compartment_id
         }
 
-        deployment_filename = dump_json(app_info)
-        os_upload(
-            os_client, 
-            deployment_filename, 
-            namespace, 
-            bucket, 
-            f"{root_path}/{build.version}/deployment.json"
+        os_upload_json(
+            os_client, app_info,
+            namespace, bucket, f"{root_path}/{build.version}/deployment.json"
         )
