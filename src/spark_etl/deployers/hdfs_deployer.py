@@ -37,9 +37,24 @@ class HDFSDeployer(AbstractDeployer):
                 'scp', '-q', f"{build_dir}/{artifact}", f"{bridge}:{bridge_dir}/{artifact}"
             ])
 
+        # copy job loader
+        job_loader_filename = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            'job_loader.py'
+        )
+        subprocess.call([
+            'scp', '-q', job_loader_filename, f"{bridge}:{bridge_dir}/job_loader.py"
+        ])
+
+
         dest_location = f"{deployment_location}/{build.version}"
         _execute(bridge, f"hdfs dfs -rm -r {dest_location}", error_ok=True)
         _execute(bridge, f"hdfs dfs -mkdir -p {dest_location}")
-        for artifact in build.artifacts:
+
+        artifacts = []
+        artifacts.extend(build.artifacts)
+        artifacts.append("job_loader.py")
+        for artifact in artifacts:
             _execute(bridge, f"hdfs dfs -copyFromLocal {bridge_dir}/{artifact} {dest_location}/{artifact}")
+        
         _execute(bridge, f"rm -rf {bridge_dir}")

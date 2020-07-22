@@ -1,18 +1,48 @@
+import os
 import json
 import time
 import subprocess
 from urllib.parse import urlparse
+import uuid
+import tempfile
 
 from requests.auth import HTTPBasicAuth
 import requests
 
 from .abstract_job_submitter import AbstractJobSubmitter
 
+def _execute(host, cmd, error_ok=False):
+    r = subprocess.call(["ssh", "-q", "-t", host, cmd], shell=False)
+    if not error_ok and r != 0:
+        raise Exception(f"command {cmd} failed with exit code {r}")
+
 class LivyJobSubmitter(AbstractJobSubmitter):
     def __init__(self, config):
         super(LivyJobSubmitter, self).__init__(config)
 
+    # options is vendor specific arguments
+    # args.conf is the spark job config
+    # args is arguments need to pass to the main entry
     def run(self, deployment_location, options={}, args={}):
+        bridge = self.config["bridge"]
+        stage_dir = self.config['stage_dir']
+        run_dir = self.config['run_dir']
+
+        # create run dir
+        run_id = str(uuid.uuid4())
+        _execute(bridge, f"mkdir -p {stage_dir}/{run_id}")
+        _execute(bridge, f"hdfs dfs -mkdir -p {run_dir}/{run_id}")
+
+        # generate input.json
+        tf = tempfile.NamedTemporaryFile(mode="wt", delete=False)
+        json.dump(args, tf)
+        tf.close()
+        subprocess.check_call([
+            'scp', '-q', tf.name, f"{bridge}:{stage_dir}/{run_id}/input.json"
+        ])
+        _execute(bridge, f"hdfs dfs -copyFromLocal {stage_dir}/{run_id}/input.json {run_dir}/{run_id}/input.json")
+        os.remove(tf.name)
+
         o = urlparse(deployment_location)
         if o.scheme != 'hdfs':
             raise SparkETLDeploymentFailure("deployment_location must be in hdfs")
@@ -23,12 +53,16 @@ class LivyJobSubmitter(AbstractJobSubmitter):
             'proxyUser': 'root'
         }
 
-        print(deployment_location)
-
         config = {
-            'file': f'{deployment_location}/main.py',
+            'file': f'{deployment_location}/job_loader.py',
             'pyFiles': [f'{deployment_location}/app.zip'],
+            'args': [
+                '--run-id', run_id, 
+                '--run-dir', f"{run_dir}/{run_id}",
+                '--lib-url', f'{deployment_location}/lib.zip'
+            ]
         }
+        config.update(options)
 
         service_url = self.config['service_url']
         if service_url.endswith("/"):
@@ -82,8 +116,20 @@ class LivyJobSubmitter(AbstractJobSubmitter):
 
             ))
             if job_state in ['success', 'dead']:
-                cmd = f"yarn logs -applicationId {appId}"
-                host = self.config['bridge']
-                subprocess.call(["ssh", "-q", "-t", host, cmd], shell=False)
-                return job_state
+                # cmd = f"yarn logs -applicationId {appId}"
+                # host = self.config['bridge']
+                # subprocess.call(["ssh", "-q", "-t", host, cmd], shell=False)
+                print(f"job_state={job_state}")
+                if job_state == 'success':
+                    # get the result.json
+                    _execute(bridge, f"hdfs dfs -copyToLocal {run_dir}/{run_id}/result.json {stage_dir}/{run_id}/result.json")
+                    rf = tempfile.NamedTemporaryFile(mode="w", delete=False)
+                    rf.close()
+                    subprocess.check_call([
+                        'scp', '-q', f"{bridge}:{stage_dir}/{run_id}/result.json", rf.name
+                    ])
+
+                    with open(rf.name, "r") as f:
+                        return json.load(f)
+                raise Exception("Job failed")
             time.sleep(5)
