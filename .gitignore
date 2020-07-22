@@ -1,5 +1,5 @@
 .idea/
 build/
-dfs_tool.egg-info/
+src/spark_etl.egg-info/
 dist/
 **/*/__pycache__/
