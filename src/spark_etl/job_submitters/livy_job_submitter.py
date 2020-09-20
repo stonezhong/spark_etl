@@ -71,6 +71,7 @@ class LivyJobSubmitter(AbstractJobSubmitter):
         username = self.config['username']
         password = self.config['password']
 
+        print(json.dumps(config))
         r = requests.post(
             "{}/batches".format(service_url),
             data=json.dumps(config),
