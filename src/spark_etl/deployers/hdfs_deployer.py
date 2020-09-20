@@ -5,11 +5,12 @@ from urllib.parse import urlparse
 
 from .abstract_deployer import AbstractDeployer
 from spark_etl import Build
+from spark_etl.exceptions import SparkETLDeploymentFailure
 
 def _execute(host, cmd, error_ok=False):
     r = subprocess.call(["ssh", "-q", "-t", host, cmd], shell=False)
     if not error_ok and r != 0:
-        raise Exception(f"command {cmd} failed with exit code {r}")
+        raise Exception(f"command \"{cmd}\" failed with exit code {r}")
 
 
 class HDFSDeployer(AbstractDeployer):
