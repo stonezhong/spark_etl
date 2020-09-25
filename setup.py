@@ -11,7 +11,7 @@ with open(os.path.join(HERE, "README.md"), "r") as f:
 # This call to setup() does all the work
 setup(
     name="spark-etl",
-    version="0.0.5",
+    version="0.0.6",
     description="Generic ETL Pipeline Framework for Apache Spark",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -21,7 +21,6 @@ setup(
     license="MIT",
     classifiers=[
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 2",
         "Programming Language :: Python :: 3",
     ],
     package_dir = {'': 'src'},
