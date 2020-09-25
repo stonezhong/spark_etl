@@ -12,7 +12,7 @@ import requests
 from .abstract_job_submitter import AbstractJobSubmitter
 
 def _execute(host, cmd, error_ok=False):
-    r = subprocess.call(["ssh", "-q", "-t", host, cmd], shell=False)
+    r = subprocess.call(["ssh", "-q", host, cmd], shell=False)
     if not error_ok and r != 0:
         raise Exception(f"command {cmd} failed with exit code {r}")
 
