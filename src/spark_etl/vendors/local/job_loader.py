@@ -28,6 +28,7 @@ def _bootstrap():
     os.chdir(run_home)
 
     # setup lib path
+    sys.path.insert(0, os.path.join(args.app_dir, 'app.zip'))
     sys.path.insert(0, os.path.join(args.app_dir, 'lib'))
 
     # change home dir to the deployment location
