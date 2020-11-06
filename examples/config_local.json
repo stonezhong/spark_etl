@@ -1,0 +1,19 @@
+{
+    "deployer": {
+        "class": "spark_etl.vendors.local.LocalDeployer",
+        "args": [
+            {
+            }
+        ]
+    },
+    "job_submitter": {
+        "class": "spark_etl.vendors.local.PySparkJobSubmitter",
+        "args": [
+            {
+                "run_dir": "/home/stonezhong/etl_lab/runs"
+            }
+        ]
+    },
+    "job_run_options": {
+    }
+}
