@@ -3,3 +3,4 @@ build/
 src/spark_etl.egg-info/
 dist/
 **/*/__pycache__/
+.venv/
