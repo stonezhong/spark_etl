@@ -22,7 +22,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         if o.scheme != 'oci':
             raise SparkETLLaunchFailure("run_base_dir must be in OCI")
 
-    
+
     @property
     def region(self):
         return self.config['region']
@@ -40,7 +40,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         root_path = o.path[1:] # remove the leading "/"
 
         # let's get the deployment.json
-        os_client = get_os_client(self.region)
+        os_client = get_os_client(self.region, self.config.get("oci_config"))
         deployment = os_download_json(os_client, namespace, bucket, f"{root_path}/deployment.json")
 
         r = os_client.create_preauthenticated_request(
@@ -63,7 +63,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         root_path = o.path[1:] # remove the leading "/"
         os_upload_json(os_client, args, namespace, bucket, f"{root_path}/{run_id}/args.json")
 
-        df_client = get_df_client(self.region)
+        df_client = get_df_client(self.region, self.config.get("oci_config"))
         crd_argv = {
             'compartment_id': deployment['compartment_id'],
             'application_id': deployment['application_id'],
@@ -95,7 +95,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
             print(f"Status: {run.lifecycle_state}")
             if run.lifecycle_state in ('FAILED', 'SUCCEEDED'):
                 break
-        
+
         return {
             'state': run.lifecycle_state,
             'run_id': run_id,

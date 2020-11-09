@@ -4,9 +4,20 @@ import os
 import subprocess
 import sys
 import uuid
+import json
 from urllib.parse import urlparse
+import tempfile
 
 from pyspark.sql import SparkSession, SQLContext, Row
+
+{% if use_instance_principle %}
+USE_INSTANCE_PRINCIPLE = True
+{% else %}
+USE_INSTANCE_PRINCIPLE = False
+OCI_CONFIG = json.loads("""{{ oci_config_str }}""")
+OCI_KEY = """{{ oci_key }}"""
+{% endif %}
+
 
 # lib installer
 def _install_libs(lib_url):
@@ -14,7 +25,7 @@ def _install_libs(lib_url):
     unique_id = str(uuid.uuid4())
     lib_dir = os.path.join(current_dir, unique_id, 'python_libs')
     lib_zip = os.path.join(current_dir, unique_id, 'lib.zip')
-    
+
     os.makedirs(lib_dir)
     subprocess.check_call(['wget', "-O", lib_zip, lib_url])
     subprocess.check_call(['unzip', lib_zip, "-d", lib_dir])
@@ -86,9 +97,16 @@ def _bootstrap():
     run_dir = args.run_dir
 
     # The entry is in a python file "main.py"
-    from oci_core import dfapp_get_os_client, get_delegation_token
-    delegation_token = get_delegation_token(spark)
-    os_client = dfapp_get_os_client(args.app_region, delegation_token)
+    from oci_core import dfapp_get_os_client, get_delegation_token, get_os_client
+    if USE_INSTANCE_PRINCIPLE:
+        delegation_token = get_delegation_token(spark)
+        os_client = dfapp_get_os_client(args.app_region, delegation_token)
+    else:
+        with tempfile.NamedTemporaryFile(mode='w+t', delete=False) as key_f:
+            key_f.write(OCI_KEY)
+        _oci_config = dict(OCI_CONFIG)
+        _oci_config['key_file'] = key_f.name
+        os_client = get_os_client(None, config=_oci_config)
     xargs = _get_args(os_client, run_dir)
     entry = importlib.import_module("main")
     result = entry.main(spark, xargs, sysops={
