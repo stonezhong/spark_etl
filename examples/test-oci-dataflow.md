@@ -1,36 +1,18 @@
 # Test with Your Spark Cluster
 
 Assumptions:
-* You have a Spark Cluster installed
-* You have a bridge host setup
-    * You can `ssh` to the bridge host without the need to enter password, you can config your `~/.ssh/config` to get this done.
-    * The bridge host can access HDFS via `hdfs` command.
-* Your Spark Cluster has a livy interface for user to submit jobs.
-
+* You have a tenany in OCI, have Dataflow service enabled
 
 This example shows how you can build, deploy and run sample application in myapp directory. You can create your own data application in separate directroy and follow the same steps.
 
 <details>
-<summary>step 1: use the config file <code>config.json</code></summary>
+<summary>step 1: use the config file <code>config_oci.json</code></summary>
 <br />
 
-* It uses the config in `config.json`, you can modify it if needed.
-* config for stage host
-    * Make sure `deployer.args[0].bridge` points to the bridge host name or ip
-    * Make sure you have directory `deployer.args[0].stage_dir` created on bridge host
-* Config your livy
-    * `job_submitter.args[0].service_url` must point to the livy endpoint
-    * `job_submitter.args[0].username` specify your livy user's username
-    * `job_submitter.args[0].password` specify your livy user's password
-    * `job_submitter.args[0].run_dir` points to the run_dir in your HDFS
-
-Now you need to create 2 directories in hdfs, you can do it in bridge host:
-```
-hdfs dfs -mkdir -p hdfs:///etl/runs
-hdfs dfs -mkdir -p hdfs:///etl/apps
-```
-
-Note, setup of spark cluster is not covered by this document.
+* It uses the config in `config_oci.json`, you can modify it if needed.
+* `deployer.args[0].region`: specify the region your Dataflow app will be created
+* `deployer.args[0].oci_config`: specify your oci configuration.
+* `deployer.args[0].dataflow`: specify the dataflow related config
 </details>
 
 
@@ -40,7 +22,7 @@ Note, setup of spark cluster is not covered by this document.
 
 do this:
 ```
-./etl.py -a build --app-dir ./myapp --build-dir ./myapp/build -c config.json
+./etl.py -a build --app-dir ./myapp --build-dir ./myapp/build
 ```
 </details>
 
@@ -50,8 +32,15 @@ do this:
 
 do this:
 ```
-./etl.py -a deploy --build-dir ./myapp/build --deploy-dir $HOME/etl_lab/apps/myapp -c config_local.json
+./etl.py -a deploy \
+    -c config_oci.json \
+    --build-dir ./myapp/build \
+    --deploy-dir oci://dataflow-apps@idrnu3akjpv5/testapps/myapp
 ```
+* `oci://dataflow-apps@idrnu3akjpv5/testapps/myapp` is the OCI Object Storage URL
+    * `dataflow-apps` is a bucket name, you must create this bucket
+    * `idrnu3akjpv5` is the namespace of your tenancy
+    * `/testapps/myapp` is the path of where your build will be placed
 </details>
 
 <details>
@@ -60,7 +49,11 @@ do this:
 
 do this:
 ```
-./etl.py -a run --deploy-dir $HOME/etl_lab/apps/myapp --version 1.0.0.1 -c config_local.json
+./etl.py -a run \
+    -c config_oci.json \
+    --deploy-dir oci://dataflow-apps@idrnu3akjpv5/testapps/myapp \
+    --version 1.0.0.1 \
+    --args foo.json
 ```
 </details>
 

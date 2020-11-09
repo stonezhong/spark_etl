@@ -8,7 +8,7 @@ This example shows how you can build, deploy and run sample application in myapp
 <summary>step 1: use the config file <code>config_local.json</code></summary>
 <br />
 
-* It uses the config in `config_local.json`, you can modify it if needed.
+* It uses the config in [`config_local.json`](config_local.json), you can modify it if needed.
 
 Make bunch of directories:
 ```
@@ -30,7 +30,7 @@ pip install pyspark
 
 do this:
 ```
-./etl.py -a build --app-dir ./myapp --build-dir ./myapp/build -c config_local.json
+./etl.py -a build --app-dir ./myapp --build-dir ./myapp/build
 ```
 </details>
 
@@ -40,7 +40,7 @@ do this:
 
 do this:
 ```
-./etl.py -a deploy --build-dir ./myapp/build --deploy-dir hdfs:///etl/apps/myapp -c config.json
+./etl.py -a deploy --build-dir ./myapp/build --deploy-dir $HOME/etl_lab/apps/myapp -c config_local.json
 ```
 </details>
 
@@ -50,10 +50,8 @@ do this:
 
 do this:
 ```
-./etl.py -a run --deploy-dir hdfs:///etl/apps/myapp   --version 1.0.0.1 -c config.json
+./etl.py -a run --deploy-dir $HOME/etl_lab/apps/myapp --version 1.0.0.1 -c config_local.json
 ```
 
-To check the application log, you can go to the bridge host and run:
-yarn logs -applicationId <application_id>
 </details>
 

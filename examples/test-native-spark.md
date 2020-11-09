@@ -40,7 +40,7 @@ Note, setup of spark cluster is not covered by this document.
 
 do this:
 ```
-./etl.py -a build --app-dir ./myapp --build-dir ./myapp/build -c config.json
+./etl.py -a build --app-dir ./myapp --build-dir ./myapp/build
 ```
 </details>
 
@@ -50,7 +50,10 @@ do this:
 
 do this:
 ```
-./etl.py -a deploy --build-dir ./myapp/build --deploy-dir $HOME/etl_lab/apps/myapp -c config_local.json
+./etl.py -a deploy \
+    -c config.json \
+    --build-dir ./myapp/build \
+    --deploy-dir hdfs:///etl/apps/myapp
 ```
 </details>
 
@@ -60,7 +63,13 @@ do this:
 
 do this:
 ```
-./etl.py -a run --deploy-dir $HOME/etl_lab/apps/myapp --version 1.0.0.1 -c config_local.json
+./etl.py -a run \
+    -c config.json \
+    --deploy-dir hdfs:///etl/apps/myapp \
+    --version 1.0.0.1 \
+    --args foo.json
 ```
+
+***To check the application log, you can go to the bridge host and run: yarn logs -applicationId <application_id>***
 </details>
 

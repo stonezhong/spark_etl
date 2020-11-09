@@ -84,8 +84,8 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         r = df_client.create_run(create_run_details=create_run_details)
         check_response(r, lambda : SparkETLLaunchFailure("dataflow failed to run the application"))
         run = r.data
-        run_id = run.id
-        print(f"Job launched, run_id = {run_id}")
+        oci_run_id = run.id
+        print(f"Job launched, run_id = {run_id}, oci_run_id = {run.id}")
 
         while True:
             time.sleep(10)
@@ -96,11 +96,12 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
             if run.lifecycle_state in ('FAILED', 'SUCCEEDED'):
                 break
 
-        return {
-            'state': run.lifecycle_state,
-            'run_id': run_id,
-            'succeeded': run.lifecycle_state == 'SUCCEEDED'
-        }
+        return self.get_result(run_id)
+        # return {
+        #     'state': run.lifecycle_state,
+        #     'run_id': run_id,
+        #     'succeeded': run.lifecycle_state == 'SUCCEEDED'
+        # }
 
     def get_result(self, run_id):
         result_object_name = f"{self.config['run_base_dir']}/{run_id}/result.json"
@@ -110,7 +111,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         bucket = o.netloc.split('@')[0]
         object_name = o.path[1:]    # remove the leading "/"
 
-        os_client = get_os_client(self.region)
+        os_client = get_os_client(self.region, self.config.get("oci_config"))
         result = os_download_json(os_client, namespace, bucket, object_name)
         return result
 
