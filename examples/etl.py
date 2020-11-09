@@ -42,6 +42,9 @@ def main():
     parser.add_argument(
         "--version", help="Application version"
     )
+    parser.add_argument(
+        "--args", help="Application args"
+    )
     args = parser.parse_args()
     if args.action == "build":
         do_build(args)
@@ -51,6 +54,12 @@ def main():
         do_run(args)
 
     return
+
+def get_app_args(args):
+    if args.args is None:
+        return {}
+    with open(args.args, "r") as f:
+        return json.load(f)
 
 def get_config(args):
     config_filename = args.config_filename or "config.json"
@@ -92,10 +101,13 @@ def do_deploy(args):
 def do_run(args):
     config = get_config(args)
     job_submitter = get_job_submitter(config['job_submitter'])
-    job_submitter.run(
+    ret = job_submitter.run(
         f"{args.deploy_dir}/{args.version}",
-        options=config.get("job_run_options", {})
+        options=config.get("job_run_options", {}),
+        args=get_app_args(args)
     )
+    print("return:")
+    print(json.dumps(ret, indent=4))
 
 if __name__ == '__main__':
     main()
