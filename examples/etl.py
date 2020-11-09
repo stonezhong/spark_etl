@@ -13,12 +13,14 @@ from spark_etl import Application, Build
 # ./etl.py -a build --app-dir ./myapp --build-dir ./myapp/build
 #
 # Deploy
-# ./etl.py -a deploy --build-dir ./myapp/build --deploy-dir hdfs:///etl/apps/myapp
-# ./etl.py -a deploy --build-dir ./myapp/build --deploy-dir /home/stonezhong/etl_lab/apps
+# ./etl.py -a deploy -c config.json       --build-dir ./myapp/build --deploy-dir hdfs:///etl/apps/myapp
+# ./etl.py -a deploy -c config_local.json --build-dir ./myapp/build --deploy-dir $HOME/etl_lab/apps/myapp
+# ./etl.py -a deploy -c config_oci.json   --build-dir ./myapp/build --deploy-dir oci://dataflow-apps@idrnu3akjpv5/testapps/myapp
 #
 # Run the application
-# ./etl.py -a run --deploy-dir hdfs:///etl/apps/myapp        --version 1.0.0.1
-# ./etl.py -a run --deploy-dir /home/stonezhong/etl_lab/apps --version 1.0.0.1
+# ./etl.py -a run -c config.json       --deploy-dir hdfs:///etl/apps/myapp    --version 1.0.0.1
+# ./etl.py -a run -c config_local.json --deploy-dir $HOME/etl_lab/apps/myapp  --version 1.0.0.1
+# ./etl.py -a run -c config_oci.json   --deploy-dir oci://dataflow-apps@idrnu3akjpv5/testapps/myapp --version 1.0.0.1
 #
 def main():
     parser = argparse.ArgumentParser()

@@ -1,1 +1,4 @@
 simplejson==3.17.0
+
+# add this if you want to use OCI DataFlow
+oci-core==0.0.3
