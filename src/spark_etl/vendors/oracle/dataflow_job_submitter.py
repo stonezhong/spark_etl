@@ -93,9 +93,11 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
             check_response(r, lambda : SparkETLGetStatusFailure("dataflow failed to get run status"))
             run = r.data
             print(f"Status: {run.lifecycle_state}")
-            if run.lifecycle_state in ('FAILED', 'SUCCEEDED'):
+            if run.lifecycle_state in ('FAILED', 'SUCCEEDED', 'CANCELED'):
                 break
 
+        if run.lifecycle_state in ('FAILED', 'CANCELED'):
+            raise Exception(f"Job failed with status: {run.lifecycle_state}")
         return self.get_result(run_id)
         # return {
         #     'state': run.lifecycle_state,
