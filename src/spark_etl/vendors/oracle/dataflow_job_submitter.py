@@ -28,6 +28,11 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         return self.config['region']
 
     def run(self, deployment_location, options={}, args={}):
+        # options fields
+        #     num_executors     : number
+        #     driver_shape      :  string
+        #     executor_shape    : string
+        #     lib_url_duration  : number (repre the number of minutes)
         o = urlparse(deployment_location)
         if o.scheme != 'oci':
             raise SparkETLLaunchFailure("deployment_location must be in OCI")
@@ -43,6 +48,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         os_client = get_os_client(self.region, self.config.get("oci_config"))
         deployment = os_download_json(os_client, namespace, bucket, f"{root_path}/deployment.json")
 
+        lib_url_duration = options.get("lib_url_duration", 30)
         r = os_client.create_preauthenticated_request(
             namespace,
             bucket,
@@ -50,7 +56,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
                 access_type = 'ObjectRead',
                 name=f'for run {run_id}',
                 object_name=f'{root_path}/lib.zip',
-                time_expires=datetime.utcnow() + timedelta(minutes=30)
+                time_expires=datetime.utcnow() + timedelta(minutes=lib_url_duration)
             )
         )
         check_response(r, lambda : SparkETLLaunchFailure("dataflow failed to get lib url"))
