@@ -1,12 +1,14 @@
 import argparse
 import importlib
 import os
+import errno
 import subprocess
 import sys
 import uuid
 import json
 from urllib.parse import urlparse
 import tempfile
+import time
 
 from pyspark.sql import SparkSession, SQLContext, Row
 
@@ -20,16 +22,41 @@ OCI_KEY = """{{ oci_key }}"""
 
 
 # lib installer
-def _install_libs(lib_url):
+def _install_libs(lib_url, run_id):
     current_dir = os.getcwd()
-    unique_id = str(uuid.uuid4())
-    lib_dir = os.path.join(current_dir, unique_id, 'python_libs')
-    lib_zip = os.path.join(current_dir, unique_id, 'lib.zip')
+    base_dir    = os.path.join(current_dir, run_id)
+    lib_dir     = os.path.join(base_dir, 'python_libs')
+    lib_zip     = os.path.join(base_dir, 'lib.zip')
+    lock_name   = os.path.join(base_dir, '__lock__')
 
-    os.makedirs(lib_dir)
-    subprocess.check_call(['wget', "-O", lib_zip, lib_url])
-    subprocess.check_call(['unzip', lib_zip, "-d", lib_dir])
-    sys.path.insert(0, lib_dir)
+    os.makedirs(base_dir, exist_ok=True)
+
+    for i in range(0, 100):
+        try:
+            lock_fh = os.open(lock_name, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(lock_fh)
+            try:
+                if not os.path.isdir(lib_dir):
+                    print("_install_libs: install lib starts")
+                    os.makedirs(lib_dir)
+                    subprocess.check_call(['wget', "-O", lib_zip, lib_url])
+                    subprocess.check_call(['unzip', lib_zip, "-d", lib_dir])
+                    print("_install_libs: install lib done")
+                if lib_dir not in sys.path:
+                    print(f"_install_libs: add {lib_dir} path")
+                    sys.path.insert(0, lib_dir)
+                return 
+            finally:
+                os.remove(lock_name)
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                time.sleep(10)
+                continue
+            raise
+    
+    raise Exception("Failed to install libraries!")
+
+
 
 def _save_result(os_client, run_dir, result):
     from oci_core import os_upload_json
@@ -110,7 +137,7 @@ def _bootstrap():
     xargs = _get_args(os_client, run_dir)
     entry = importlib.import_module("main")
     result = entry.main(spark, xargs, sysops={
-        "install_libs": lambda : _install_libs(args.lib_url)
+        "install_libs": lambda : _install_libs(args.lib_url, run_id)
     })
 
     _save_result(os_client, run_dir, result)
