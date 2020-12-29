@@ -57,12 +57,13 @@ class LivyJobSubmitter(AbstractJobSubmitter):
             'file': f'{deployment_location}/job_loader.py',
             'pyFiles': [f'{deployment_location}/app.zip'],
             'args': [
-                '--run-id', run_id, 
+                '--run-id', run_id,
                 '--run-dir', f"{run_dir}/{run_id}",
                 '--lib-url', f'{deployment_location}/lib.zip'
             ]
         }
         config.update(options)
+        config.pop("display_name", None)  # livy job submitter does not support display_name
 
         service_url = self.config['service_url']
         if service_url.endswith("/"):
@@ -94,7 +95,7 @@ class LivyJobSubmitter(AbstractJobSubmitter):
         print('logs:')
         for log in ret.get('log', []):
             print(log)
-        
+
         # pull the job status
         while True:
             r = requests.get(
