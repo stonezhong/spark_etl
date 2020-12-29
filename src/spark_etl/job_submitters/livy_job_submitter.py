@@ -23,7 +23,7 @@ class LivyJobSubmitter(AbstractJobSubmitter):
     # options is vendor specific arguments
     # args.conf is the spark job config
     # args is arguments need to pass to the main entry
-    def run(self, deployment_location, options={}, args={}):
+    def run(self, deployment_location, options={}, args={}, handlers=[]):
         bridge = self.config["bridge"]
         stage_dir = self.config['stage_dir']
         run_dir = self.config['run_dir']

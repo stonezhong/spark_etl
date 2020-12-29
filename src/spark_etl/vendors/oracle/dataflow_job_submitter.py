@@ -27,7 +27,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
     def region(self):
         return self.config['region']
 
-    def run(self, deployment_location, options={}, args={}):
+    def run(self, deployment_location, options={}, args={}, handlers=[]):
         # options fields
         #     num_executors     : number
         #     driver_shape      :  string
@@ -101,6 +101,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
             print(f"Status: {run.lifecycle_state}")
             if run.lifecycle_state in ('FAILED', 'SUCCEEDED', 'CANCELED'):
                 break
+            self.handle_ask(run_id, handlers)
 
         if run.lifecycle_state in ('FAILED', 'CANCELED'):
             raise Exception(f"Job failed with status: {run.lifecycle_state}")
@@ -110,6 +111,45 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         #     'run_id': run_id,
         #     'succeeded': run.lifecycle_state == 'SUCCEEDED'
         # }
+
+    # job can send request to launcher
+    def handle_ask(self, run_id, handlers):
+        run_base_dir = self.config['run_base_dir']
+        o = urlparse(run_base_dir)
+        namespace = o.netloc.split('@')[1]
+        bucket = o.netloc.split('@')[0]
+        base_dir = o.path[1:]    # remove the leading "/"
+
+        os_client = get_os_client(self.region, self.config.get("oci_config"))
+        while True:
+            r = os_client.list_objects(
+                namespace, 
+                bucket,
+                prefix = f"{base_dir}/{run_id}/to_submitter/ask_",
+                limit = 1
+            )
+            if len(r.data.objects) == 0:
+                break
+            object_name = r.data.objects[0].name
+            content = os_download_json(os_client, namespace, bucket, object_name)
+            print(f"Got ask: {content}")
+            out = None
+            handled = False
+            for handler in handlers:
+                handled, out = handler(content)
+                if handled:
+                    break
+            if not handled:
+                raise Exception("ask is not handled")
+            
+            print(f"Answer is: {out}")
+            print("")
+        
+            ask_name = object_name.split("/")[-1]
+            answer_name = "answer" + ask_name[3:]
+
+            os_client.delete_object(namespace, bucket, object_name)
+            os_upload_json(os_client, out, namespace, bucket, f"{base_dir}/{run_id}/to_submitter/{answer_name}")
 
     def get_result(self, run_id):
         result_object_name = f"{self.config['run_base_dir']}/{run_id}/result.json"
