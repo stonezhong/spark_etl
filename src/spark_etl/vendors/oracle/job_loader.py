@@ -9,6 +9,7 @@ import json
 from urllib.parse import urlparse
 import tempfile
 import time
+from datetime import datetime, timedelta
 
 from pyspark.sql import SparkSession, SQLContext, Row
 
@@ -56,6 +57,34 @@ def _install_libs(lib_url, run_id):
     
     raise Exception("Failed to install libraries!")
 
+# place a request to the launcher
+def _ask(os_client, content, run_dir, timeout):
+    from oci_core import os_upload_json, os_download_json
+
+    request_id = str(uuid.uuid4())
+
+    o = urlparse(run_dir)
+    namespace = o.netloc.split('@')[1]
+    bucket = o.netloc.split('@')[0]
+    object_name_prefix = o.path[1:]  # drop the leading /
+
+    os_upload_json(os_client, content, namespace, bucket, f"{object_name_prefix}/to_submitter/ask_{request_id}.json")
+    answer_name = f"{object_name_prefix}/to_submitter/answer_{request_id}.json"
+    start_time = datetime.utcnow()
+    while True:
+        r = os_client.list_objects(
+            namespace, 
+            bucket,
+            prefix = answer_name,
+            limit = 1
+        )
+        if len(r.data.objects) == 0:
+            if (datetime.utcnow() - start_time) >= timeout:
+                raise Exception("Ask is not answered: timed out")
+            time.sleep(5)
+            continue
+
+        return os_download_json(os_client, namespace, bucket, answer_name)
 
 
 def _save_result(os_client, run_dir, result):
@@ -137,7 +166,8 @@ def _bootstrap():
     xargs = _get_args(os_client, run_dir)
     entry = importlib.import_module("main")
     result = entry.main(spark, xargs, sysops={
-        "install_libs": lambda : _install_libs(args.lib_url, run_id)
+        "install_libs": lambda : _install_libs(args.lib_url, run_id),
+        "ask": lambda content, timeout=timedelta(minutes=10): _ask(os_client, content, run_dir, timeout)
     })
 
     _save_result(os_client, run_dir, result)
