@@ -57,34 +57,53 @@ def _install_libs(lib_url, run_id):
     
     raise Exception("Failed to install libraries!")
 
-# place a request to the launcher
-def _ask(os_client, content, run_dir, timeout):
-    from oci_core import os_upload_json, os_download_json
+class Asker:
+    def __init__(self, run_dir, app_region):
+        self.spark = None
+        self.run_dir = run_dir
+        self.app_region = app_region
+    
+    def initialize(self, spark):
+        from oci_core import dfapp_get_os_client, get_delegation_token, get_os_client
 
-    request_id = str(uuid.uuid4())
+        if USE_INSTANCE_PRINCIPLE:
+            delegation_token = get_delegation_token(spark)
+            self.os_client = dfapp_get_os_client(self.app_region, delegation_token)
+        else:
+            with tempfile.NamedTemporaryFile(mode='w+t', delete=False) as key_f:
+                key_f.write(OCI_KEY)
+            _oci_config = dict(OCI_CONFIG)
+            _oci_config['key_file'] = key_f.name
+            self.os_client = get_os_client(None, config=_oci_config)
 
-    o = urlparse(run_dir)
-    namespace = o.netloc.split('@')[1]
-    bucket = o.netloc.split('@')[0]
-    object_name_prefix = o.path[1:]  # drop the leading /
+    # place a request to the launcher
+    def __call__(self, content, timeout=timedelta(minutes=10)):
+        from oci_core import os_upload_json, os_download_json
 
-    os_upload_json(os_client, content, namespace, bucket, f"{object_name_prefix}/to_submitter/ask_{request_id}.json")
-    answer_name = f"{object_name_prefix}/to_submitter/answer_{request_id}.json"
-    start_time = datetime.utcnow()
-    while True:
-        r = os_client.list_objects(
-            namespace, 
-            bucket,
-            prefix = answer_name,
-            limit = 1
-        )
-        if len(r.data.objects) == 0:
-            if (datetime.utcnow() - start_time) >= timeout:
-                raise Exception("Ask is not answered: timed out")
-            time.sleep(5)
-            continue
+        request_id = str(uuid.uuid4())
 
-        return os_download_json(os_client, namespace, bucket, answer_name)
+        o = urlparse(self.run_dir)
+        namespace = o.netloc.split('@')[1]
+        bucket = o.netloc.split('@')[0]
+        object_name_prefix = o.path[1:]  # drop the leading /
+
+        os_upload_json(self.os_client, content, namespace, bucket, f"{object_name_prefix}/to_submitter/ask_{request_id}.json")
+        answer_name = f"{object_name_prefix}/to_submitter/answer_{request_id}.json"
+        start_time = datetime.utcnow()
+        while True:
+            r = self.os_client.list_objects(
+                namespace, 
+                bucket,
+                prefix = answer_name,
+                limit = 1
+            )
+            if len(r.data.objects) == 0:
+                if (datetime.utcnow() - start_time) >= timeout:
+                    raise Exception("Ask is not answered: timed out")
+                time.sleep(5)
+                continue
+
+            return os_download_json(self.os_client, namespace, bucket, answer_name)
 
 
 def _save_result(os_client, run_dir, result):
@@ -167,8 +186,10 @@ def _bootstrap():
     entry = importlib.import_module("main")
     result = entry.main(spark, xargs, sysops={
         "install_libs": lambda : _install_libs(args.lib_url, run_id),
-        "ask": lambda content, timeout=timedelta(minutes=10): _ask(os_client, content, run_dir, timeout)
+        "ask": Asker(run_dir, args.app_region),
     })
+
+    # user need to initialize ask with ask.initialize(spark) before using it
 
     _save_result(os_client, run_dir, result)
 
