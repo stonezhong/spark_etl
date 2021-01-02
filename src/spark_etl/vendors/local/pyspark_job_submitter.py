@@ -11,8 +11,9 @@ class PySparkJobSubmitter(AbstractJobSubmitter):
         super(PySparkJobSubmitter, self).__init__(config)
 
 
-    def run(self, deployment_location, options={}, args={}):
+    def run(self, deployment_location, options={}, args={}, handlers=[]):
         # version is already baked into deployment_location
+        # local submitter ignores handlers
         run_id  = str(uuid.uuid4())
         run_dir = self.config['run_dir']
         app_dir = deployment_location
