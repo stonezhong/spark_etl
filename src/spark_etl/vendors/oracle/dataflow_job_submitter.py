@@ -135,21 +135,46 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
             print(f"Got ask: {content}")
             out = None
             handled = False
-            for handler in handlers:
-                handled, out = handler(content)
-                if handled:
-                    break
-            if not handled:
-                raise Exception("ask is not handled")
+            exception_name = None
+            exception_msg = None
+            # TODO: shall we ask handler to provide a name so we can track down
+            #       which handler blows up?
+            try:
+                for handler in handlers:
+                    handled, out = handler(content)
+                    if handled:
+                        break
+                # if not handled:
+                #     raise Exception("ask is not handled")
+            except Exception as e:
+                exception_name = e.__class__.__name__
+                exception_msg = str(e)
             
-            print(f"Answer is: {out}")
-            print("")
+            if not handled:
+                if exception_name:
+                    answer = {
+                        "status": "exception",
+                        "exception_name": exception_name,
+                        "exception_msg": exception_msg
+                    }
+                    print(f"Exception {exception_name} happened during handling the question, error message: {exception_msg}")
+                else:
+                    answer = {
+                        "status": "unhandled"
+                    }
+                    print(f"Ask is not handled, probably missing required handler!")
+            else:
+                print(f"Ask is handled, answer is: {out}")
+                answer = {
+                    "status": "ok",
+                    "reply": out
+                }
         
             ask_name = object_name.split("/")[-1]
             answer_name = "answer" + ask_name[3:]
 
             os_client.delete_object(namespace, bucket, object_name)
-            os_upload_json(os_client, out, namespace, bucket, f"{base_dir}/{run_id}/to_submitter/{answer_name}")
+            os_upload_json(os_client, answer, namespace, bucket, f"{base_dir}/{run_id}/to_submitter/{answer_name}")
 
     def get_result(self, run_id):
         result_object_name = f"{self.config['run_base_dir']}/{run_id}/result.json"
