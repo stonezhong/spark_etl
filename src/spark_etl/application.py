@@ -52,7 +52,19 @@ class Application:
         ])
         return tmpdir
 
-    def build(self, destination):
+    def get_tmp_requirements(self, default_libs):
+        with tempfile.NamedTemporaryFile(mode="w+t", delete=False) as f:
+            for line in default_libs:
+                print(line, file=f)
+            app_req_filename = os.path.join(self.location, "requirements.txt")
+            if os.path.isfile(app_req_filename):
+                with open(app_req_filename, "rt") as arf:
+                    for line in arf:
+                        print(line, file=f)
+            return f.name
+
+
+    def build(self, destination, default_libs=[]):
         """
         Build the application
         """
@@ -64,12 +76,14 @@ class Application:
 
         lib_dir = os.path.join(build_stage_dir, "lib")
         os.mkdir(lib_dir)
+        tmp_requirements = self.get_tmp_requirements(default_libs)
         subprocess.check_call([
             os.path.join(venv_dir, "bin", "python"),
             "-m", "pip",
-            "install", "-r", os.path.join(self.location, "requirements.txt"),
+            "install", "-r", tmp_requirements,
             "-t", lib_dir
         ])
+        os.remove(tmp_requirements)
 
         # generate archive for lib
         lib_filename = os.path.join(build_stage_dir, 'lib.zip')
