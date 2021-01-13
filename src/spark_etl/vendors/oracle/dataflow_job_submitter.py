@@ -27,12 +27,13 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
     def region(self):
         return self.config['region']
 
-    def run(self, deployment_location, options={}, args={}, handlers=[]):
+    def run(self, deployment_location, options={}, args={}, handlers=[], on_job_submitted=None):
         # options fields
         #     num_executors     : number
         #     driver_shape      :  string
         #     executor_shape    : string
         #     lib_url_duration  : number (repre the number of minutes)
+        #     on_job_submitted  : callback, on_job_submitted(run_id, vendor_info={'oci_run_id': 'xxxyyy'})
         o = urlparse(deployment_location)
         if o.scheme != 'oci':
             raise SparkETLLaunchFailure("deployment_location must be in OCI")
@@ -92,6 +93,8 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         run = r.data
         oci_run_id = run.id
         print(f"Job launched, run_id = {run_id}, oci_run_id = {run.id}")
+        if on_job_submitted is not None:
+            on_job_submitted(run_id, vendor_info={'oci_run_id': run.id})
 
         while True:
             time.sleep(10)

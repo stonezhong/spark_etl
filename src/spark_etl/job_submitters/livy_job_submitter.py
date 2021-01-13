@@ -23,7 +23,7 @@ class LivyJobSubmitter(AbstractJobSubmitter):
     # options is vendor specific arguments
     # args.conf is the spark job config
     # args is arguments need to pass to the main entry
-    def run(self, deployment_location, options={}, args={}, handlers=[]):
+    def run(self, deployment_location, options={}, args={}, handlers=[], on_job_submitted=None):
         bridge = self.config["bridge"]
         stage_dir = self.config['stage_dir']
         run_dir = self.config['run_dir']
@@ -89,13 +89,15 @@ class LivyJobSubmitter(AbstractJobSubmitter):
 
         print('job submitted')
         ret = json.loads(r.content.decode("utf8"))
+        if on_job_submitted is not None:
+            on_job_submitted(run_id, vendor_info=ret)
         job_id = ret['id']
         print('job id: {}'.format(job_id))
         print(ret)
         print('logs:')
         for log in ret.get('log', []):
             print(log)
-
+            
         # pull the job status
         while True:
             r = requests.get(
