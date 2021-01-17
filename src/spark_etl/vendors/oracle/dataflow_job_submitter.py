@@ -125,7 +125,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
                 r = os_client.list_objects(
                     namespace, 
                     bucket,
-                    prefix = f"{base_dir}/{run_id}/to_submitter/ask_",
+                    prefix = prefix,
                     limit = limit
                 )
                 return r
