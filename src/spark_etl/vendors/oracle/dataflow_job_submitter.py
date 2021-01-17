@@ -138,6 +138,8 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
 
     # job can send request to launcher
     def handle_ask(self, run_id, handlers):
+        if len(handlers) == 0:
+            return
         run_base_dir = self.config['run_base_dir']
         o = urlparse(run_base_dir)
         namespace = o.netloc.split('@')[1]
