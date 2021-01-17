@@ -115,6 +115,27 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         #     'succeeded': run.lifecycle_state == 'SUCCEEDED'
         # }
 
+    def _list_objects(self, os_client, namespace, bucket, prefix, limit, retry_count = 6):
+        if not isinstance(retry_count, int):
+            raise ValueError(f"retry_count MUST be int")
+        if retry_count < 1:
+            raise ValueError(f"retry_count = {retry_count}")
+        for i in range(0, retry_count):
+            try:
+                r = os_client.list_objects(
+                    namespace, 
+                    bucket,
+                    prefix = f"{base_dir}/{run_id}/to_submitter/ask_",
+                    limit = limit
+                )
+                return r
+            except oci.exceptions.ServiceError as e:
+                if e.status == 503:
+                    print("oci os_client.list_object failed with 503, retrying ...")
+                    time.sleep(10)
+                    continue
+        raise Exception(f"OCI list_object failed after {retry_count} retries")
+
     # job can send request to launcher
     def handle_ask(self, run_id, handlers):
         run_base_dir = self.config['run_base_dir']
@@ -125,7 +146,8 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
 
         os_client = get_os_client(self.region, self.config.get("oci_config"))
         while True:
-            r = os_client.list_objects(
+            r = self._list_objects(
+                os_client,
                 namespace, 
                 bucket,
                 prefix = f"{base_dir}/{run_id}/to_submitter/ask_",
