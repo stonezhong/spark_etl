@@ -1,6 +1,7 @@
 import argparse
 import importlib
 import os
+import io
 import errno
 import subprocess
 import sys
@@ -10,6 +11,8 @@ from urllib.parse import urlparse
 import tempfile
 import time
 from datetime import datetime, timedelta
+from contextlib import redirect_stdout, redirect_stderr
+import code
 
 from pyspark.sql import SparkSession, SQLContext, Row
 
@@ -116,6 +119,74 @@ def _save_result(os_client, run_dir, result):
 
     os_upload_json(os_client, result, namespace, bucket, f"{object_name_prefix}/result.json")
 
+def get_os_client_ex(spark, region):
+    from oci_core import dfapp_get_os_client, get_delegation_token, get_os_client
+    if USE_INSTANCE_PRINCIPLE:
+        delegation_token = get_delegation_token(spark)
+        os_client = dfapp_get_os_client(region, delegation_token)
+    else:
+        with tempfile.NamedTemporaryFile(mode='w+t', delete=False) as key_f:
+            key_f.write(OCI_KEY)
+        _oci_config = dict(OCI_CONFIG)
+        _oci_config['key_file'] = key_f.name
+        os_client = get_os_client(None, config=_oci_config)
+    return os_client
+
+
+def _read_json(spark, region, run_dir, name):
+    from oci_core import os_download_json
+    o = urlparse(run_dir)
+
+    namespace = o.netloc.split('@')[1]
+    bucket = o.netloc.split('@')[0]
+    object_name_prefix = o.path[1:]  # drop the leading /
+
+    os_client = get_os_client_ex(spark, region)
+    return os_download_json(os_client, namespace, bucket, f"{object_name_prefix}/{name}")
+
+def _has_json(spark, region, run_dir, name):
+    from oci_core import os_download_json
+    import oci
+    o = urlparse(run_dir)
+
+    namespace = o.netloc.split('@')[1]
+    bucket = o.netloc.split('@')[0]
+    object_name_prefix = o.path[1:]  # drop the leading /
+
+    os_client = get_os_client_ex(spark, region)
+
+    try:
+        os_client.head_object(namespace, bucket, f"{object_name_prefix}/{name}")
+        return True
+    except oci.exceptions.ServiceError as e:
+        if e.status==404:
+            return False
+        raise
+
+def _write_json(spark, region, run_dir, name, payload):
+    from oci_core import os_upload_json
+    o = urlparse(run_dir)
+
+    namespace = o.netloc.split('@')[1]
+    bucket = o.netloc.split('@')[0]
+    object_name_prefix = o.path[1:]  # drop the leading /
+
+    os_client = get_os_client_ex(spark, region)
+    os_upload_json(os_client, payload, namespace, bucket, f"{object_name_prefix}/{name}")
+
+def _delete_json(spark, region, run_dir, name):
+    from oci_core import os_upload_json
+    import oci
+    o = urlparse(run_dir)
+
+    namespace = o.netloc.split('@')[1]
+    bucket = o.netloc.split('@')[0]
+    object_name_prefix = o.path[1:]  # drop the leading /
+
+    os_client = get_os_client_ex(spark, region)
+    os_client.delete_object(namespace, bucket, f"{object_name_prefix}/{name}")
+
+
 def _get_args(os_client, run_dir):
     from oci_core import os_download_json
     o = urlparse(run_dir)
@@ -186,7 +257,12 @@ def _bootstrap():
     entry = importlib.import_module("main")
     result = entry.main(spark, xargs, sysops={
         "install_libs": lambda : _install_libs(args.lib_url, run_id),
+        "read_json": lambda name: _read_json(spark, args.app_region, run_dir, name),
+        "write_json": lambda name, payload: _write_json(spark, args.app_region, run_dir, name, payload),
+        "delete_json": lambda name: _delete_json(spark, args.app_region, run_dir, name),
+        "has_json": lambda name: _has_json(spark, args.app_region, run_dir, name),
         "ask": Asker(run_dir, args.app_region),
+        "cli_main": cli_main,
     })
 
     # user need to initialize ask with ask.initialize(spark) before using it
@@ -194,6 +270,93 @@ def _bootstrap():
     _save_result(os_client, run_dir, result)
 
     # TODO: make a copy of the log file
+
+class PySparkConsole(code.InteractiveInterpreter):
+    def __init__(self, locals=None):
+        super(PySparkConsole, self).__init__(locals=locals)
+
+def handle_pwd(user_input, write_json):
+    write_json(
+        "cli-response.json", 
+        {
+            "status": "ok",
+            "output": os.getcwd()
+        }
+    )
+
+def handle_bash(user_input, write_json):
+    cmd_buffer = '\n'.join(user_input['lines'])
+    f = io.StringIO()
+    with redirect_stdout(f):
+        p = subprocess.run(cmd_buffer, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    
+    write_json(
+        "cli-response.json", 
+        {
+            "status": "ok",
+            "exit_code": p.returncode,
+            "output": p.stdout.decode('utf-8'),
+        }
+    )
+
+def handle_python(user_input, console, write_json):
+    source = '\n'.join(user_input['lines'])
+    stdout_f = io.StringIO()
+    stderr_f = io.StringIO()
+    with redirect_stdout(stdout_f):
+        with redirect_stderr(stderr_f):
+            console.runsource(source, symbol="exec")
+    
+    write_json(
+        "cli-response.json", 
+        {
+            "status": "ok",
+            "output": stdout_f.getvalue() + "\n" + stderr_f.getvalue() ,
+        }
+    )
+
+def cli_main(spark, args, sysops={}):
+    read_json = sysops['read_json']
+    write_json = sysops['write_json']
+    delete_json = sysops['delete_json']
+    has_json = sysops['has_json']
+    console = PySparkConsole(locals={'spark': spark})
+
+    write_json(
+        "cli-response.json", 
+        {
+            "status": "ok",
+            "output": "Welcome to OCI Spark-CLI Interface",
+        }
+    )
+
+    while True:
+        if not has_json('cli-request.json'):
+            time.sleep(1)
+            continue
+
+        user_input = read_json('cli-request.json')
+        delete_json('cli-request.json')
+
+        if user_input["type"] == "@@quit":
+            write_json(
+                "cli-response.json", 
+                {
+                    "status": "ok",
+                    "output": "Server quit gracefully",
+                }
+            )
+            break
+        if user_input["type"] == "@@pwd":
+            handle_pwd(user_input, write_json)
+            continue
+        if user_input["type"] == "@@bash":
+            handle_bash(user_input, write_json)
+            continue
+        if user_input["type"] == "@@python":
+            handle_python(user_input, console, write_json)
+            continue
+    return {"status": "ok"}
 
 
 _bootstrap()
