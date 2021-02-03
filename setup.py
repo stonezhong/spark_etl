@@ -11,7 +11,7 @@ with open(os.path.join(HERE, "README.md"), "r") as f:
 # This call to setup() does all the work
 setup(
     name="spark-etl",
-    version="0.0.45",
+    version="0.0.46",
     description="Generic ETL Pipeline Framework for Apache Spark",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -25,5 +25,5 @@ setup(
     ],
     package_dir = {'': 'src'},
     packages=find_packages(where='src'),
-    install_requires=["requests", "Jinja2"],
+    install_requires=["requests", "Jinja2", "termcolor"],
 )
