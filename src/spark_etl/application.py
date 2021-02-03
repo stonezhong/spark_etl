@@ -15,7 +15,7 @@ def _act_in_dir(new_dir):
     finally:
         os.chdir(current_dir)
 
-def delete_file_if_exist(filename):
+def _delete_file_if_exist(filename):
     if os.path.isfile(filename):
         os.remove(filename)
 
@@ -28,7 +28,7 @@ class Application:
         Parameters
         ----------
         location: str
-            The location of the application
+            The directory path for the source code location of the application. See examples/myapp for example.
         """
         self.location = location
         with open(f"{self.location}/manifest.json", "r") as f:
@@ -36,9 +36,10 @@ class Application:
 
     @property
     def version(self):
+        """The application version specified by the manifest file"""
         return self.manifest['version']
 
-    def create_venv(self):
+    def _create_venv(self):
         tmpdir = tempfile.mkdtemp()
         subprocess.check_call(['/usr/bin/python3', "-m", "venv", tmpdir])
         subprocess.check_call([
@@ -52,7 +53,7 @@ class Application:
         ])
         return tmpdir
 
-    def get_tmp_requirements(self, default_libs):
+    def _get_tmp_requirements(self, default_libs):
         with tempfile.NamedTemporaryFile(mode="w+t", delete=False) as f:
             for line in default_libs:
                 print(line, file=f)
@@ -66,17 +67,30 @@ class Application:
 
     def build(self, destination, default_libs=[]):
         """
-        Build the application
+        Build the application, it generates the necessary artifacts for the application including:
+            app.zip         -- the archive for the application code
+            lib.zip         -- the archive for the library
+            main.py         -- the main application entry
+            manifest.json   -- the application manifest file
+
+        Parameters
+        ----------
+        location: str
+            The directory where those generated artifacts is stored.
+
+        default_libs: list of str
+            A list of libraries needed which is not specified in the requirements.txt.
+            E.g. ["six==1.11.0"]
         """
 
         os.makedirs(destination, exist_ok=True)
         build_stage_dir = tempfile.mkdtemp()
 
-        venv_dir = self.create_venv()
+        venv_dir = self._create_venv()
 
         lib_dir = os.path.join(build_stage_dir, "lib")
         os.mkdir(lib_dir)
-        tmp_requirements = self.get_tmp_requirements(default_libs)
+        tmp_requirements = self._get_tmp_requirements(default_libs)
         subprocess.check_call([
             os.path.join(venv_dir, "bin", "python"),
             "-m", "pip",
@@ -96,7 +110,7 @@ class Application:
             subprocess.run(['zip', "-r", app_filename, "."])
 
         for filename in ["main.py", "manifest.json", "lib.zip", "app.zip"]:
-            delete_file_if_exist(os.path.join(destination, filename))
+            _delete_file_if_exist(os.path.join(destination, filename))
 
         shutil.copyfile(lib_filename, os.path.join(destination, 'lib.zip'))
         shutil.copyfile(app_filename, os.path.join(destination, 'app.zip'))

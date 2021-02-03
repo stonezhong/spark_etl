@@ -1,0 +1,82 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module spark_etl.application</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong><a href="spark_etl.html"><font color="#ffffff">spark_etl</font></a>.application</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:/mnt/DATA_DISK/projects/spark_etl/src/spark_etl/application.py">/mnt/DATA_DISK/projects/spark_etl/src/spark_etl/application.py</a></font></td></tr></table>
+    <p></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#aa55cc">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="json.html">json</a><br>
+<a href="os.html">os</a><br>
+</td><td width="25%" valign=top><a href="shutil.html">shutil</a><br>
+<a href="subprocess.html">subprocess</a><br>
+</td><td width="25%" valign=top><a href="tempfile.html">tempfile</a><br>
+</td><td width="25%" valign=top></td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ee77aa">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Classes</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#ee77aa"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl>
+<dt><font face="helvetica, arial"><a href="builtins.html#object">builtins.object</a>
+</font></dt><dd>
+<dl>
+<dt><font face="helvetica, arial"><a href="spark_etl.application.html#Application">Application</a>
+</font></dt></dl>
+</dd>
+</dl>
+ <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Application">class <strong>Application</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt>Represent&nbsp;a&nbsp;spark&nbsp;application<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Application-__init__"><strong>__init__</strong></a>(self, location)</dt><dd><tt>Parameters<br>
+----------<br>
+location:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;directory&nbsp;path&nbsp;for&nbsp;the&nbsp;source&nbsp;code&nbsp;location&nbsp;of&nbsp;the&nbsp;application.&nbsp;See&nbsp;examples/myapp&nbsp;for&nbsp;example.</tt></dd></dl>
+
+<dl><dt><a name="Application-build"><strong>build</strong></a>(self, destination, default_libs=[])</dt><dd><tt>Build&nbsp;the&nbsp;application,&nbsp;it&nbsp;generates&nbsp;the&nbsp;necessary&nbsp;artifacts&nbsp;for&nbsp;the&nbsp;application&nbsp;including:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;app.zip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;archive&nbsp;for&nbsp;the&nbsp;application&nbsp;code<br>
+&nbsp;&nbsp;&nbsp;&nbsp;lib.zip&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;archive&nbsp;for&nbsp;the&nbsp;library<br>
+&nbsp;&nbsp;&nbsp;&nbsp;main.py&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;main&nbsp;application&nbsp;entry<br>
+&nbsp;&nbsp;&nbsp;&nbsp;manifest.json&nbsp;&nbsp;&nbsp;--&nbsp;the&nbsp;application&nbsp;manifest&nbsp;file<br>
+&nbsp;<br>
+Parameters<br>
+----------<br>
+location:&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;The&nbsp;directory&nbsp;where&nbsp;those&nbsp;generated&nbsp;artifacts&nbsp;is&nbsp;stored.<br>
+&nbsp;<br>
+default_libs:&nbsp;list&nbsp;of&nbsp;str<br>
+&nbsp;&nbsp;&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;libraries&nbsp;needed&nbsp;which&nbsp;is&nbsp;not&nbsp;specified&nbsp;in&nbsp;the&nbsp;requirements.txt.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;E.g.&nbsp;["six==1.11.0"]</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>version</strong></dt>
+<dd><tt>The&nbsp;application&nbsp;version&nbsp;specified&nbsp;by&nbsp;the&nbsp;manifest&nbsp;file</tt></dd>
+</dl>
+</td></tr></table></td></tr></table>
+</body></html>
