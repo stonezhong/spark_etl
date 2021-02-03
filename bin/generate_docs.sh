@@ -11,7 +11,10 @@ rm -rf *
 . ${PROJECT_ROOT}/test/.venv/bin/activate
 python -m pydoc -w \
     spark_etl \
-    spark_etl.application
+    spark_etl.application \
+    spark_etl.build \
+    spark_etl.exceptions
+
 
 rm -rf ${PROJECT_ROOT}/docs/pydocs
 mv ${PROJECT_ROOT}/pydocs ${PROJECT_ROOT}/docs
