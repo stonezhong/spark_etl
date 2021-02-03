@@ -180,9 +180,12 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
                     # print('#################################################')
                     cprint(response['output'], 'green', 'on_red')
                     if log_filename is not None:
-                        with open(log_filename, "a+t") as log_f:
-                            print(response['output'], file=log_f)
-                            print("", file=log_f)
+                        try:
+                            with open(log_filename, "a+t") as log_f:
+                                print(response['output'], file=log_f)
+                                print("", file=log_f)
+                        except Exception as e:
+                            print(f"Unable to write to file {log_filename}: {str(e)}")
                     is_waiting_for_response = False
                     if command == "@@quit":
                         break
