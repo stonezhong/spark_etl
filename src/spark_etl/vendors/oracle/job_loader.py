@@ -145,7 +145,7 @@ def _read_json(spark, region, run_dir, name):
     return os_download_json(os_client, namespace, bucket, f"{object_name_prefix}/{name}")
 
 def _has_json(spark, region, run_dir, name):
-    from oci_core import os_download_json
+    from oci_core import os_has_object
     import oci
     o = urlparse(run_dir)
 
@@ -154,14 +154,7 @@ def _has_json(spark, region, run_dir, name):
     object_name_prefix = o.path[1:]  # drop the leading /
 
     os_client = get_os_client_ex(spark, region)
-
-    try:
-        os_client.head_object(namespace, bucket, f"{object_name_prefix}/{name}")
-        return True
-    except oci.exceptions.ServiceError as e:
-        if e.status==404:
-            return False
-        raise
+    return os_has_object(os_client, namespace, bucket, f"{object_name_prefix}/{name}")
 
 def _write_json(spark, region, run_dir, name, payload):
     from oci_core import os_upload_json
@@ -175,7 +168,7 @@ def _write_json(spark, region, run_dir, name, payload):
     os_upload_json(os_client, payload, namespace, bucket, f"{object_name_prefix}/{name}")
 
 def _delete_json(spark, region, run_dir, name):
-    from oci_core import os_upload_json
+    from oci_core import os_delete_object
     import oci
     o = urlparse(run_dir)
 
@@ -184,7 +177,7 @@ def _delete_json(spark, region, run_dir, name):
     object_name_prefix = o.path[1:]  # drop the leading /
 
     os_client = get_os_client_ex(spark, region)
-    os_client.delete_object(namespace, bucket, f"{object_name_prefix}/{name}")
+    os_delete_object(os_client, namespace, bucket, f"{object_name_prefix}/{name}")
 
 
 def _get_args(os_client, run_dir):
