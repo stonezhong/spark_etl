@@ -7,7 +7,8 @@ from termcolor import colored, cprint
 import readline
 
 import oci
-from oci_core import get_os_client, get_df_client, os_upload, os_upload_json, os_download, os_download_json, os_get_endpoint
+from oci_core import get_os_client, get_df_client, os_upload, os_upload_json, os_download, os_download_json, os_get_endpoint, \
+    os_has_object, os_delete_object
 
 from spark_etl.job_submitters import AbstractJobSubmitter
 from spark_etl import SparkETLLaunchFailure, SparkETLGetStatusFailure, SparkETLKillFailure
@@ -411,13 +412,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         root_path = o.path[1:] # remove the leading "/"
         object_name = f"{root_path}/{run_id}/cli-response.json"
 
-        try:
-            result = os_client.head_object(namespace, bucket, f"{root_path}/{run_id}/cli-response.json")
-            return True
-        except oci.exceptions.ServiceError as e:
-            if e.status==404:
-                return False
-            raise
+        return os_has_object(os_client, namespace, bucket, f"{root_path}/{run_id}/cli-response.json")
 
     def read_cli_response(self, run_id):
         os_client = get_os_client(self.region, self.config.get("oci_config"))
@@ -428,8 +423,8 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         root_path = o.path[1:] # remove the leading "/"
         object_name = f"{root_path}/{run_id}/cli-response.json"
 
-        result = os_download_json(os_client, namespace, bucket, f"{root_path}/{run_id}/cli-response.json")
-        os_client.delete_object(namespace, bucket, f"{root_path}/{run_id}/cli-response.json")
+        result = os_download_json(os_client, namespace, bucket, object_name)
+        os_delete_object(os_client, namespace, bucket, object_name)
         return result
 
 
