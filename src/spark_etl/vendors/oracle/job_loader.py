@@ -46,7 +46,7 @@ class Channel:
         return os_download_json(
             os_client, 
             self.namespace, self.bucket, 
-            f"{object_name_prefix}/{name}"
+            f"{self.object_name_prefix}/{name}"
         )
 
     def has_json(self, name):
@@ -57,7 +57,7 @@ class Channel:
         return os_has_object(
             os_client, 
             self.namespace, self.bucket, 
-            f"{object_name_prefix}/{name}"
+            f"{self.object_name_prefix}/{name}"
         )
     
     def write_json(self, name, payload):
@@ -69,7 +69,7 @@ class Channel:
             os_client, 
             payload, 
             self.namespace, self.bucket, 
-            f"{object_name_prefix}/{name}"
+            f"{self.object_name_prefix}/{name}"
         )
     
     def delete_json(self, name):
@@ -80,7 +80,7 @@ class Channel:
         os_delete_object(
             os_client, 
             self.namespace, self.bucket, 
-            f"{object_name_prefix}/{name}"
+            f"{self.object_name_prefix}/{name}"
         )
     
 # lib installer
@@ -322,7 +322,7 @@ def cli_main(spark, args, sysops={}):
     channel.bind(spark)
     console = PySparkConsole(locals={'spark': spark})
 
-    write_json(
+    channel.write_json(
         "cli-response.json", 
         {
             "status": "ok",
