@@ -10,6 +10,60 @@ import json
 
 from pyspark.sql import SparkSession
 
+class ServerChannel:
+    def __init__(self, run_dir):
+        self.run_dir = run_dir
+
+    def bind(self, spark):
+        pass
+
+    def read_json(self, name):
+        stage_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
+        stage_file.close()
+        try:
+            subprocess.check_call([
+                "hdfs", "dfs", "-copyToLocal", "-f",
+                os.path.join(self.run_dir, name),
+                stage_file.name
+            ])
+            with open(stage_file.name) as f:
+                return json.load(f)
+        finally:
+            os.remove(stage_file.name)
+
+
+    def has_json(self, name):
+        exit_code = subprocess.call([
+            "hdfs", "dfs", "-test", "-f",
+            os.path.join(self.run_dir, name)
+        ])
+        if exit_code == 0:
+            return True
+        if exit_code == 1:
+            return False
+        raise Exception(f"Unrecognized exit_code: {exit_code}")
+
+
+    def write_json(self, name, payload):
+        stage_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
+        stage_file.close()
+        try:
+            with open(stage_file.name, "wt") as f:
+                json.dump(payload, f)
+            subprocess.check_call([
+                "hdfs", "dfs", "-copyFromLocal", stage_file.name,
+                os.path.join(self.run_dir, name)
+            ])
+        finally:
+            os.remove(stage_file.name)
+
+
+    def delete_json(self, name):
+        subprocess.check_call([
+            "hdfs", "dfs", "-rm", os.path.join(self.run_dir, name)
+        ])
+
+
 # lib installer
 def _install_libs(lib_url):
     ##########################################
@@ -32,7 +86,7 @@ def _install_libs(lib_url):
     lib_zip = os.path.join(lib_dir, f"{unique_id}.zip")
     os.makedirs(bin_dir, exist_ok=True)
 
-    # lib_url must be a HDFS url (or perhaps can be handled by a hdfs connector)    
+    # lib_url must be a HDFS url (or perhaps can be handled by a hdfs connector)
     subprocess.check_call(["hdfs", "dfs", "-copyToLocal", lib_url, lib_zip])
     subprocess.check_call(['unzip', lib_zip, "-d", bin_dir])
     sys.path.insert(0, bin_dir)
@@ -66,7 +120,9 @@ spark = SparkSession.builder.appName("RunJob").getOrCreate()
 
 try:
     entry = importlib.import_module("main")
-    result = entry.main(spark, input_args)
+    result = entry.main(spark, input_args, sysops={
+        "channel": ServerChannel(args.run_dir)
+    })
 
     # save output
     output_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
