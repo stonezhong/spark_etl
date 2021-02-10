@@ -3,6 +3,7 @@ from urllib.parse import urlparse
 import time
 import uuid
 from datetime import datetime, timedelta
+import os
 from termcolor import colored, cprint
 import readline
 
@@ -13,6 +14,46 @@ from oci_core import get_os_client, get_df_client, os_upload, os_upload_json, os
 from spark_etl.job_submitters import AbstractJobSubmitter
 from spark_etl import SparkETLLaunchFailure, SparkETLGetStatusFailure, SparkETLKillFailure
 from .tools import check_response, remote_execute
+from spark_etl.utils import CLIHandler
+from spark_etl.core import ClientChannelInterface
+
+class ClientChannel(ClientChannelInterface):
+    def __init__(self, region, oci_config, run_base_dir, run_id):
+        self.region = region
+        self.oci_config = oci_config
+        self.run_base_dir = run_base_dir
+        self.run_id = run_id
+
+        o = urlparse(run_base_dir)
+        self.namespace = o.netloc.split('@')[1]
+        self.bucket = o.netloc.split('@')[0]
+        self.root_path = o.path[1:] # remove the leading "/"
+
+
+    def read_json(self, name):
+        os_client = get_os_client(self.region, self.oci_config)
+        object_name = os.path.join(self.root_path, self.run_id, name)
+        result = os_download_json(os_client, self.namespace, self.bucket, object_name)
+        return result
+
+
+    def write_json(self, name, payload):
+        os_client = get_os_client(self.region, self.oci_config)
+        object_name = os.path.join(self.root_path, self.run_id, name)
+        os_upload_json(os_client, payload, self.namespace, self.bucket, object_name)
+
+
+    def has_json(self, name):
+        os_client = get_os_client(self.region, self.oci_config)
+        object_name = os.path.join(self.root_path, self.run_id, name)
+        return os_has_object(os_client, self.namespace, self.bucket, object_name)
+
+
+    def delete_json(self, name):
+        os_client = get_os_client(self.region, self.oci_config)
+        object_name = os.path.join(self.root_path, self.run_id, name)
+        os_delete_object(os_client, self.namespace, self.bucket, object_name)
+
 
 class DataflowJobSubmitter(AbstractJobSubmitter):
     def __init__(self, config):
@@ -30,171 +71,6 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
     def region(self):
         return self.config['region']
 
-    def cli_loop(self, run_id):
-        # line_mode can be "bash", "python" or "OFF"
-        # When line_mode is OFF, you need send explicitly run @@bash or @@python
-        # to submit a block of code to server
-        # When line_mode is bash, each line is a bash script
-        # when line_mode is python, each line is a python script
-        line_mode = "off" 
-       
-        # if is_waiting_for_response is True, we need to pull server for cli-response.json
-        # if is_waiting_for_response is False, we are free to enter new command
-        is_waiting_for_response = True      
-        # command line buffer
-        cli_lines = []
-        cli_wait_prompt = "-/|\\"
-        cli_wait_prompt_idx = 0
-        log_filename = None
-        # commands
-        # @@log           -- all the output will be written to the log file as well
-        #                    by default there is not log
-        # @@nolog         -- turn off log
-        # @@clear         -- clear command line buffer
-        # @@load          -- load a script from local file and append to command buffer
-        # @@bash          -- submit a bash script
-        # @@python        -- submit a python script
-        # @@show          -- show the command buffer
-        # @@pwd           -- show driver's current directory
-        # @@quit          -- quit the cli console
-
-        command = None
-        while True:
-            if not is_waiting_for_response:
-                if line_mode == "off":
-                    prompt = "> "
-                elif line_mode == "bash":
-                    prompt = "bash> "
-                else:
-                    prompt = "python> "
-
-                command = input(prompt)
-
-                if command == "@@quit":
-                    self.write_cli_request(
-                        run_id, 
-                        {
-                            "type": "@@quit",
-                        }
-                    )
-                    is_waiting_for_response = True
-                    continue
-                
-                if command == "@@pwd":
-                    self.write_cli_request(
-                        run_id, 
-                        {
-                            "type": "@@pwd",
-                        }
-                    )
-                    is_waiting_for_response = True
-                    continue
-
-                if command == "@@bash":
-                    self.write_cli_request(
-                        run_id, 
-                        {
-                            "type": "@@bash",
-                            "lines": cli_lines
-                        }
-                    )
-                    is_waiting_for_response = True
-                    cli_lines = []
-                    continue
-
-                if command == "@@python":
-                    self.write_cli_request(
-                        run_id, 
-                        {
-                            "type": "@@python",
-                            "lines": cli_lines
-                        }
-                    )
-                    is_waiting_for_response = True
-                    cli_lines = []
-                    continue
-                
-                if command.startswith("@@mode"):
-                    cmds = command.split(" ")
-                    if len(cmds) != 2 or cmds[1] not in ("off", "bash", "python"):
-                        print("Usage:")
-                        print("@@mode off")
-                        print("@@mode python")
-                        print("@@mode bash")
-                    else:
-                        line_mode = cmds[1]
-                    continue
-
-                if command.startswith("@@log"):
-                    cmds = command.split(" ")
-                    if len(cmds) != 2:
-                        print("Usage:")
-                        print("@@log <filename>")
-                    else:
-                        log_filename = cmds[1]
-                    continue
-
-                if command.startswith("@@load"):
-                    cmds = command.split(" ")
-                    if len(cmds) != 2:
-                        print("Usage:")
-                        print("@@load <filename>")
-                    else:
-                        try:
-                            with open(cmds[1], "rt") as load_f:
-                                for line in load_f:
-                                    cli_lines.append(line.rstrip())
-                        except Exception as e:
-                            print(f"Unable to read from file: {str(e)}")
-                    continue
-
-                if command == "@@clear":
-                    cli_lines = []
-                    continue
-
-                if command == "@@show":
-                    for line in cli_lines:
-                        print(line)
-                    print()
-                    continue
-
-                # for any other command, we will append to the cli buffer
-                if line_mode == "off":
-                    cli_lines.append(command)
-                else:
-                    self.write_cli_request(
-                        run_id, 
-                        {
-                            "type": "@@" + line_mode,
-                            "lines": [ command ]
-                        }
-                    )
-                    is_waiting_for_response = True
-            else:
-                if self.has_cli_response(run_id):
-                    response = self.read_cli_response(run_id)
-                    # print('#################################################')
-                    # print('# Response                                      #')
-                    # print(f"# status   : {response['status']}")
-                    # if 'exit_code' in response:
-                    #     print(f"# exit_code: {response['exit_code']}")
-                    # print('#################################################')
-                    cprint(response['output'], 'green', 'on_red')
-                    if log_filename is not None:
-                        try:
-                            with open(log_filename, "a+t") as log_f:
-                                print(response['output'], file=log_f)
-                                print("", file=log_f)
-                        except Exception as e:
-                            print(f"Unable to write to file {log_filename}: {str(e)}")
-                    is_waiting_for_response = False
-                    if command == "@@quit":
-                        break
-                else:
-                    time.sleep(1) # do not sleep too long since this is an interactive session
-                    print(f"\r{cli_wait_prompt[cli_wait_prompt_idx]}\r", end="")
-                    cli_wait_prompt_idx = (cli_wait_prompt_idx + 1) % 4
-
 
 
     def run(self, deployment_location, options={}, args={}, handlers=[], on_job_submitted=None, cli_mode=False):
@@ -205,8 +81,6 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         #     lib_url_duration  : number (repre the number of minutes)
         #     on_job_submitted  : callback, on_job_submitted(run_id, vendor_info={'oci_run_id': 'xxxyyy'})
 
-        # CLI mode allows client to run the spark application as a cli, so the client can send
-        # shell script and python script to execute on the driver.
         o = urlparse(deployment_location)
         if o.scheme != 'oci':
             raise SparkETLLaunchFailure("deployment_location must be in OCI")
@@ -220,23 +94,17 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
 
         # let's get the deployment.json
         os_client = get_os_client(self.region, self.config.get("oci_config"))
-        deployment = os_download_json(os_client, namespace, bucket, f"{root_path}/deployment.json")
-
-        lib_url_duration = options.get("lib_url_duration", 30)
-        r = os_client.create_preauthenticated_request(
-            namespace,
-            bucket,
-            oci.object_storage.models.CreatePreauthenticatedRequestDetails(
-                access_type = 'ObjectRead',
-                name=f'for run {run_id}',
-                object_name=f'{root_path}/lib.zip',
-                time_expires=datetime.utcnow() + timedelta(minutes=lib_url_duration)
-            )
-        )
-        check_response(r, lambda : SparkETLLaunchFailure("dataflow failed to get lib url"))
-        lib_url = f"{os_get_endpoint(self.region)}{r.data.access_uri}"
+        deployment = os_download_json(os_client, namespace, bucket, os.path.join(root_path, "deployment.json"))
 
         # let's upload the args
+        client_channel = ClientChannel(
+            self.region,
+            self.config.get("oci_config"),
+            run_base_dir,
+            run_id
+        )
+        client_channel.write_json("args.json", args)
+
         o = urlparse(self.config['run_base_dir'])
         namespace = o.netloc.split('@')[1]
         bucket = o.netloc.split('@')[0]
@@ -251,9 +119,8 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
             'arguments': [
                 "--deployment-location", deployment_location,
                 "--run-id", run_id,
-                "--run-dir", f"{run_base_dir}/{run_id}",
+                "--run-dir", os.path.join(run_base_dir, run_id),
                 "--app-region", self.region,
-                "--lib-url", lib_url,
             ],
         }
         for key in ['num_executors', 'driver_shape', 'executor_shape']:
@@ -280,13 +147,15 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
                 break
             self.handle_ask(run_id, handlers)
 
-            if cli_mode and not cli_entered:
-                self.cli_loop(run_id)
+            if cli_mode and not cli_entered and run.lifecycle_state == 'IN_PROGRESS':
                 cli_entered = True
+                cli_handler = CLIHandler(client_channel, None)
+                cli_handler.loop()
+
 
         if run.lifecycle_state in ('FAILED', 'CANCELED'):
             raise Exception(f"Job failed with status: {run.lifecycle_state}")
-        return self.get_result(run_id)
+        return client_channel.read_json('result.json')
         # return {
         #     'state': run.lifecycle_state,
         #     'run_id': run_id,
@@ -301,7 +170,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         for i in range(0, retry_count):
             try:
                 r = os_client.list_objects(
-                    namespace, 
+                    namespace,
                     bucket,
                     prefix = prefix,
                     limit = limit
@@ -328,7 +197,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         while True:
             r = self._list_objects(
                 os_client,
-                namespace, 
+                namespace,
                 bucket,
                 prefix = f"{base_dir}/{run_id}/to_submitter/ask_",
                 limit = 1
@@ -354,7 +223,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
             except Exception as e:
                 exception_name = e.__class__.__name__
                 exception_msg = str(e)
-            
+
             if not handled:
                 if exception_name:
                     answer = {
@@ -374,58 +243,13 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
                     "status": "ok",
                     "reply": out
                 }
-        
+
             ask_name = object_name.split("/")[-1]
             answer_name = "answer" + ask_name[3:]
 
             os_client.delete_object(namespace, bucket, object_name)
             os_upload_json(os_client, answer, namespace, bucket, f"{base_dir}/{run_id}/to_submitter/{answer_name}")
 
-    def get_result(self, run_id):
-        result_object_name = f"{self.config['run_base_dir']}/{run_id}/result.json"
-        o = urlparse(result_object_name)
-
-        namespace = o.netloc.split('@')[1]
-        bucket = o.netloc.split('@')[0]
-        object_name = o.path[1:]    # remove the leading "/"
-
-        os_client = get_os_client(self.region, self.config.get("oci_config"))
-        result = os_download_json(os_client, namespace, bucket, object_name)
-        return result
-
-    def write_cli_request(self, run_id, request):
-        os_client = get_os_client(self.region, self.config.get("oci_config"))
-
-        o = urlparse(self.config['run_base_dir'])
-        namespace = o.netloc.split('@')[1]
-        bucket = o.netloc.split('@')[0]
-        root_path = o.path[1:] # remove the leading "/"
-        os_upload_json(os_client, request, namespace, bucket, f"{root_path}/{run_id}/cli-request.json")
-
-
-    def has_cli_response(self, run_id):
-        os_client = get_os_client(self.region, self.config.get("oci_config"))
-
-        o = urlparse(self.config['run_base_dir'])
-        namespace = o.netloc.split('@')[1]
-        bucket = o.netloc.split('@')[0]
-        root_path = o.path[1:] # remove the leading "/"
-        object_name = f"{root_path}/{run_id}/cli-response.json"
-
-        return os_has_object(os_client, namespace, bucket, f"{root_path}/{run_id}/cli-response.json")
-
-    def read_cli_response(self, run_id):
-        os_client = get_os_client(self.region, self.config.get("oci_config"))
-
-        o = urlparse(self.config['run_base_dir'])
-        namespace = o.netloc.split('@')[1]
-        bucket = o.netloc.split('@')[0]
-        root_path = o.path[1:] # remove the leading "/"
-        object_name = f"{root_path}/{run_id}/cli-response.json"
-
-        result = os_download_json(os_client, namespace, bucket, object_name)
-        os_delete_object(os_client, namespace, bucket, object_name)
-        return result
 
 
     def kill(self, run_id):
