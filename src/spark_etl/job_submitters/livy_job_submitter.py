@@ -200,7 +200,7 @@ class LivyJobSubmitter(AbstractJobSubmitter):
             )
             raise Exception(msg)
 
-        print('job submitted')
+        print(f'job submitted, run_id = {run_id}')
         ret = json.loads(r.content.decode("utf8"))
         if on_job_submitted is not None:
             on_job_submitted(run_id, vendor_info=ret)
@@ -237,7 +237,7 @@ class LivyJobSubmitter(AbstractJobSubmitter):
                 job_state, appId
 
             ))
-            if job_state in ['success', 'dead']:
+            if job_state in ['success', 'dead', 'killed']:
                 # cmd = f"yarn logs -applicationId {appId}"
                 # host = self.config['bridge']
                 # subprocess.call(["ssh", "-q", "-t", host, cmd], shell=False)
@@ -250,7 +250,7 @@ class LivyJobSubmitter(AbstractJobSubmitter):
             # we enter the cli mode upon first reached the running status
             if cli_mode and not cli_entered and job_state == 'running':
                 cli_entered = True
-                cli_handler = CLIHandler(client_channel, lambda : get_job_status()['state'] not in ('success', 'dead'))
+                cli_handler = CLIHandler(client_channel, lambda : get_job_status()['state'] not in ('success', 'dead', 'killed'))
                 cli_handler.loop()
 
 

@@ -61,7 +61,7 @@ def get_server_channel(run_dir):
             subprocess.check_call([
                 "hdfs", "dfs", "-rm", os.path.join(self.run_dir, name)
             ])
-    
+
     return ServerChannel(run_dir)
 
 
@@ -80,6 +80,7 @@ def _install_libs(lib_url):
     #       |
     #       +-- uuid2  (lib extracted)
     ##########################################
+    print("job_loader._install_libs: enter, lib_url = {}".format(lib_url))
     current_dir = os.getcwd()
     unique_id = str(uuid.uuid4())
     lib_dir = os.path.join(current_dir, 'python_libs')
@@ -89,8 +90,9 @@ def _install_libs(lib_url):
 
     # lib_url must be a HDFS url (or perhaps can be handled by a hdfs connector)
     subprocess.check_call(["hdfs", "dfs", "-copyToLocal", lib_url, lib_zip])
-    subprocess.check_call(['unzip', lib_zip, "-d", bin_dir])
+    subprocess.check_call(['unzip', '-qq', lib_zip, "-d", bin_dir])
     sys.path.insert(0, bin_dir)
+    print("job_loader._install_libs: exit")
 
 
 print("job_loader.py: enter")
@@ -119,11 +121,11 @@ input_args = server_channel.read_json(spark, "input.json")
 try:
     entry = importlib.import_module("main")
     result = entry.main(spark, input_args, sysops={
-        "channel": ServerChannel(args.run_dir)
+        "channel": get_server_channel(args.run_dir)
     })
 
     # save output
-    server_channel.write_json(spark, "result.json")
+    server_channel.write_json(spark, "result.json", result)
     print("job_loader: exit gracefully")
 finally:
     spark.stop()
