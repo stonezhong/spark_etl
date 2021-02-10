@@ -11,8 +11,9 @@ import requests
 
 from .abstract_job_submitter import AbstractJobSubmitter
 from spark_etl.utils import CLIHandler
+from spark_etl.core import ClientChannelInterface
 
-class ClientChannel:
+class ClientChannel(ClientChannelInterface):
     def __init__(self, bridge, stage_dir, run_dir, run_id):
         self.bridge = bridge        # the bridge server's name which we can ssh to
         self.stage_dir = stage_dir  # stage_dir is on bridge

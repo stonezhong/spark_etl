@@ -3,6 +3,7 @@ from urllib.parse import urlparse
 import time
 import uuid
 from datetime import datetime, timedelta
+import os
 from termcolor import colored, cprint
 import readline
 
@@ -14,9 +15,10 @@ from spark_etl.job_submitters import AbstractJobSubmitter
 from spark_etl import SparkETLLaunchFailure, SparkETLGetStatusFailure, SparkETLKillFailure
 from .tools import check_response, remote_execute
 from spark_etl.utils import CLIHandler
+from spark_etl.core import ClientChannelInterface
 
-class ClientChannel:
-    def __init__(self, region, oci_config, run_base_dir, run_id),:
+class ClientChannel(ClientChannelInterface):
+    def __init__(self, region, oci_config, run_base_dir, run_id):
         self.region = region
         self.oci_config = oci_config
         self.run_base_dir = run_base_dir
@@ -94,25 +96,11 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         os_client = get_os_client(self.region, self.config.get("oci_config"))
         deployment = os_download_json(os_client, namespace, bucket, os.path.join(root_path, "deployment.json"))
 
-        lib_url_duration = options.get("lib_url_duration", 30)
-        r = os_client.create_preauthenticated_request(
-            namespace,
-            bucket,
-            oci.object_storage.models.CreatePreauthenticatedRequestDetails(
-                access_type = 'ObjectRead',
-                name=f'for run {run_id}',
-                object_name=f'{root_path}/lib.zip',
-                time_expires=datetime.utcnow() + timedelta(minutes=lib_url_duration)
-            )
-        )
-        check_response(r, lambda : SparkETLLaunchFailure("dataflow failed to get lib url"))
-        lib_url = f"{os_get_endpoint(self.region)}{r.data.access_uri}"
-
         # let's upload the args
         client_channel = ClientChannel(
             self.region,
             self.config.get("oci_config"),
-            self.run_base_dir,
+            run_base_dir,
             run_id
         )
         client_channel.write_json("args.json", args)
@@ -131,9 +119,8 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
             'arguments': [
                 "--deployment-location", deployment_location,
                 "--run-id", run_id,
-                "--run-dir", os.join(run_base_dir, run_id),
+                "--run-dir", os.path.join(run_base_dir, run_id),
                 "--app-region", self.region,
-                "--lib-url", lib_url,
             ],
         }
         for key in ['num_executors', 'driver_shape', 'executor_shape']:
@@ -168,7 +155,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
 
         if run.lifecycle_state in ('FAILED', 'CANCELED'):
             raise Exception(f"Job failed with status: {run.lifecycle_state}")
-        return client_handler.read_json('result.json')
+        return client_channel.read_json('result.json')
         # return {
         #     'state': run.lifecycle_state,
         #     'run_id': run_id,

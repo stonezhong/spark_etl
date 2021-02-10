@@ -13,8 +13,10 @@ import time
 from datetime import datetime, timedelta
 from contextlib import redirect_stdout, redirect_stderr
 import code
+import random
 
 from pyspark.sql import SparkSession, SQLContext, Row
+from pyspark import SparkFiles
 
 {% if use_instance_principle %}
 USE_INSTANCE_PRINCIPLE = True
@@ -24,77 +26,71 @@ OCI_CONFIG = json.loads("""{{ oci_config_str }}""")
 OCI_KEY = """{{ oci_key }}"""
 {% endif %}
 
-class ServerChannel:
-    def __init__(self, region, run_dir):
-        # run_dir point to the current job's run dir, not the base run dir
-        self.spark = None
-        self.region = region
-        self.run_dir = run_dir
+random.seed()
 
-        o = urlparse(run_dir)
-        self.namespace = o.netloc.split('@')[1]
-        self.bucket = o.netloc.split('@')[0]
-        self.object_name_prefix = o.path[1:]  # drop the leading /
+def get_server_channel(region, run_dir):
+    # from spark_etl.core import ServerChannelInterface
+    class ServerChannel:
+        def __init__(self, region, run_dir):
+            # run_dir point to the current job's run dir, not the base run dir
+            self.spark = None
+            self.region = region
+            self.run_dir = run_dir
 
-
-    def bind(self, spark):
-        self.spark = spark
-
-
-    def read_json(self, name):
-        if self.spark is None:
-            raise Exception("Channel: please bind first")
-        from oci_core import os_download_json
-        os_client = get_os_client_ex(self.spark, self.region)
-        return os_download_json(
-            os_client,
-            self.namespace, self.bucket,
-            os.path.join(self.object_name_prefix, name)
-        )
+            o = urlparse(run_dir)
+            self.namespace = o.netloc.split('@')[1]
+            self.bucket = o.netloc.split('@')[0]
+            self.object_name_prefix = o.path[1:]  # drop the leading /
 
 
-    def has_json(self, name):
-        if self.spark is None:
-            raise Exception("Channel: please bind first")
-        from oci_core import os_has_object
-        os_client = get_os_client_ex(self.spark, self.region)
-        return os_has_object(
-            os_client,
-            self.namespace, self.bucket,
-            os.path.join(self.object_name_prefix, name)
-        )
+        def read_json(self, spark, name):
+            from oci_core import os_download_json
+            os_client = get_os_client_ex(spark, self.region)
+            return os_download_json(
+                os_client,
+                self.namespace, self.bucket,
+                os.path.join(self.object_name_prefix, name)
+            )
 
 
-    def write_json(self, name, payload):
-        if self.spark is None:
-            raise Exception("Channel: please bind first")
-        from oci_core import os_upload_json
-        os_client = get_os_client_ex(self.spark, self.region)
-        os_upload_json(
-            os_client,
-            payload,
-            self.namespace, self.bucket,
-            os.path.join(self.object_name_prefix, name)
-        )
+        def has_json(self, spark, name):
+            from oci_core import os_has_object
+            os_client = get_os_client_ex(spark, self.region)
+            return os_has_object(
+                os_client,
+                self.namespace, self.bucket,
+                os.path.join(self.object_name_prefix, name)
+            )
 
 
-    def delete_json(self, name):
-        if self.spark is None:
-            raise Exception("Channel: please bind first")
-        from oci_core import os_delete_object
-        os_client = get_os_client_ex(self.spark, self.region)
-        os_delete_object(
-            os_client,
-            self.namespace, self.bucket,
-            os.path.join(self.object_name_prefix, name)
-        )
+        def write_json(self, spark, name, payload):
+            from oci_core import os_upload_json
+            os_client = get_os_client_ex(spark, self.region)
+            os_upload_json(
+                os_client,
+                payload,
+                self.namespace, self.bucket,
+                os.path.join(self.object_name_prefix, name)
+            )
+
+
+        def delete_json(self, spark, name):
+            from oci_core import os_delete_object
+            os_client = get_os_client_ex(spark, self.region)
+            os_delete_object(
+                os_client,
+                self.namespace, self.bucket,
+                os.path.join(self.object_name_prefix, name)
+            )
+    
+    return ServerChannel(region, run_dir)
 
 # lib installer
-def _install_libs(lib_url, run_id):
+def _install_libs(run_id):
     current_dir = os.getcwd()
     base_dir    = os.path.join(current_dir, run_id)
     lib_dir     = os.path.join(base_dir, 'python_libs')
-    lib_zip     = os.path.join(base_dir, 'lib.zip')
+    lib_zip     = SparkFiles.get("lib.zip")
     lock_name   = os.path.join(base_dir, '__lock__')
 
     os.makedirs(base_dir, exist_ok=True)
@@ -107,8 +103,7 @@ def _install_libs(lib_url, run_id):
                 if not os.path.isdir(lib_dir):
                     print("_install_libs: install lib starts")
                     os.makedirs(lib_dir)
-                    subprocess.check_call(['wget', "-O", lib_zip, lib_url])
-                    subprocess.check_call(['unzip', lib_zip, "-d", lib_dir])
+                    subprocess.check_call(['unzip', "-qq", lib_zip, "-d", lib_dir])
                     print("_install_libs: install lib done")
                 if lib_dir not in sys.path:
                     print(f"_install_libs: add {lib_dir} path")
@@ -118,7 +113,7 @@ def _install_libs(lib_url, run_id):
                 os.remove(lock_name)
         except OSError as e:
             if e.errno == errno.EEXIST:
-                time.sleep(10)
+                time.sleep(random.randint(1, 10))
                 continue
             raise
 
@@ -199,9 +194,6 @@ def _bootstrap():
         "--run-dir", type=str, required=True, help="Run Directory",
     )
     parser.add_argument(
-        "--lib-url", type=str, required=True, help="Library URL",
-    )
-    parser.add_argument(
         "--app-region", type=str, required=True, help="Application Region",
     )
     args = parser.parse_args()
@@ -214,34 +206,33 @@ def _bootstrap():
     spark = SparkSession.builder.appName("RunJob").getOrCreate()
     sc = spark.sparkContext
     sc.addPyFile(f"{args.deployment_location}/app.zip")
+    sc.addFile(f"{args.deployment_location}/lib.zip")
     print("Application loaded")
-
-    subprocess.check_call(['wget', args.lib_url])
 
     # The archive file goes into /opt/dataflow
     # Load python libraries
     current_dir = os.getcwd()
     lib_dir = os.path.join(current_dir, 'python_libs')
     os.mkdir(lib_dir)
+    lib_zip = SparkFiles.get("lib.zip")
     subprocess.call([
-        'unzip', "lib.zip", "-d", lib_dir
+        'unzip', "-qq", lib_zip, "-d", lib_dir
     ])
     sys.path.insert(0, lib_dir)
 
     run_id = args.run_id
     run_dir = args.run_dir
 
-    server_channel = ServerChannel(args.app_region, run_dir)
-    xargs = server_channel.read_json("args.json")
+    server_channel = get_server_channel(args.app_region, run_dir)
+    xargs = server_channel.read_json(spark, "args.json")
 
     entry = importlib.import_module("main")
     result = entry.main(spark, xargs, sysops={
-        "install_libs": lambda : _install_libs(args.lib_url, run_id),
+        "install_libs": lambda : _install_libs(run_id),
         "ask": Asker(run_dir, args.app_region),
-        "cli_main": cli_main,
         "channel": server_channel
     })
-    server_channel.write_json(result, "result.json")
+    server_channel.write_json(spark, "result.json", result)
 
 
 class PySparkConsole(code.InteractiveInterpreter):

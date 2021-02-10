@@ -11,8 +11,9 @@ from termcolor import colored, cprint
 CLI_REQUEST_NAME = "cli-request.json"
 CLI_RESPONSE_NAME = "cli-response.json"
 
-def handle_pwd(user_input, channel):
+def handle_pwd(spark, user_input, channel):
     channel.write_json(
+        spark,
         CLI_RESPONSE_NAME,
         {
             "status": "ok",
@@ -20,13 +21,14 @@ def handle_pwd(user_input, channel):
         }
     )
 
-def handle_bash(user_input, channel):
+def handle_bash(spark, user_input, channel):
     cmd_buffer = '\n'.join(user_input['lines'])
     f = io.StringIO()
     with redirect_stdout(f):
         p = subprocess.run(cmd_buffer, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     channel.write_json(
+        spark,
         CLI_RESPONSE_NAME,
         {
             "status": "ok",
@@ -35,7 +37,7 @@ def handle_bash(user_input, channel):
         }
     )
 
-def handle_python(user_input, console, channel):
+def handle_python(spark, user_input, console, channel):
     source = '\n'.join(user_input['lines'])
     stdout_f = io.StringIO()
     stderr_f = io.StringIO()
@@ -44,6 +46,7 @@ def handle_python(user_input, console, channel):
             console.runsource(source, symbol="exec")
 
     channel.write_json(
+        spark, 
         CLI_RESPONSE_NAME,
         {
             "status": "ok",
@@ -59,7 +62,11 @@ class PySparkConsole(code.InteractiveInterpreter):
 class CLIHandler:
     def __init__(self, client_channel, is_job_active):
         self.client_channel = client_channel
-        self.is_job_active = is_job_active
+        if is_job_active is None:
+            self.is_job_active = lambda : True
+        else:
+            self.is_job_active = is_job_active
+
         self.last_job_ok_time = None
 
 
@@ -237,10 +244,10 @@ class CLIHandler:
 
 def cli_main(spark, args, sysops={}):
     channel = sysops['channel']
-    channel.bind(spark)
     console = PySparkConsole(locals={'spark': spark})
 
     channel.write_json(
+        spark, 
         CLI_RESPONSE_NAME,
         {
             "status": "ok",
@@ -249,15 +256,16 @@ def cli_main(spark, args, sysops={}):
     )
 
     while True:
-        if not channel.has_json(CLI_REQUEST_NAME):
+        if not channel.has_json(spark, CLI_REQUEST_NAME):
             time.sleep(1)
             continue
 
-        user_input = channel.read_json(CLI_REQUEST_NAME)
-        channel.delete_json(CLI_REQUEST_NAME)
+        user_input = channel.read_json(spark, CLI_REQUEST_NAME)
+        channel.delete_json(spark, CLI_REQUEST_NAME)
 
         if user_input["type"] == "@@quit":
             channel.write_json(
+                spark,
                 CLI_RESPONSE_NAME,
                 {
                     "status": "ok",
@@ -266,12 +274,12 @@ def cli_main(spark, args, sysops={}):
             )
             break
         if user_input["type"] == "@@pwd":
-            handle_pwd(user_input, channel)
+            handle_pwd(spark, user_input, channel)
             continue
         if user_input["type"] == "@@bash":
-            handle_bash(user_input, channel)
+            handle_bash(spark, user_input, channel)
             continue
         if user_input["type"] == "@@python":
-            handle_python(user_input, console, channel)
+            handle_python(spark, user_input, console, channel)
             continue
     return {"status": "ok"}
