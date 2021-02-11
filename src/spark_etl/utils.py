@@ -60,13 +60,14 @@ class PySparkConsole(code.InteractiveInterpreter):
 
 
 class CLIHandler:
-    def __init__(self, client_channel, is_job_active):
+    def __init__(self, client_channel, is_job_active, handlers):
         self.client_channel = client_channel
         if is_job_active is None:
             self.is_job_active = lambda : True
         else:
             self.is_job_active = is_job_active
-
+        
+        self.handlers = handlers
         self.last_job_ok_time = None
 
 
@@ -100,6 +101,7 @@ class CLIHandler:
 
         command = None
         while True:
+            handle_server_ask(self.client_channel, self.handlers)
             if not is_waiting_for_response:
                 if line_mode == "off":
                     prompt = "> "
@@ -244,7 +246,7 @@ class CLIHandler:
 
 def cli_main(spark, args, sysops={}):
     channel = sysops['channel']
-    console = PySparkConsole(locals={'spark': spark})
+    console = PySparkConsole(locals={'spark': spark, 'sysops': sysops})
 
     channel.write_json(
         spark, 
@@ -283,3 +285,97 @@ def cli_main(spark, args, sysops={}):
             handle_python(spark, user_input, console, channel)
             continue
     return {"status": "ok"}
+
+SERVER_TO_CLIENT_REQUEST    = "stc-request.json"
+SERVER_TO_CLIENT_RESPONSE   = "stc-response.json"
+
+class RemoteCallException(Exception):
+    def __init__(self, status, exception_msg=None, exception_name=None):
+        if status == 'nohandler':
+            msg = 'remote call failed: no handler'
+        elif status == 'exception':
+            msg = f'remote call failed: exception, name="{exception_name}", msg="{exception_msg}"'
+        else:
+            msg =f'remote call failed: something is wrong'
+
+        super(RemoteCallException, self).__init__(msg)
+        self.msg = msg
+        self.status = status
+        self.exception_msg = exception_msg
+        self.exception_name = exception_name
+
+
+def server_ask_client(spark, channel, content, timeout=600, check_interval=5):
+    """Called by server, ask a question and wait for answer
+    """
+    channel.write_json(spark, SERVER_TO_CLIENT_REQUEST, content)
+    start_time = datetime.utcnow()
+    while True:
+        if channel.has_json(spark, SERVER_TO_CLIENT_RESPONSE):
+            response = channel.read_json(spark, SERVER_TO_CLIENT_RESPONSE)
+            channel.delete_json(spark, SERVER_TO_CLIENT_RESPONSE)
+            if response['status'] == 'ok':
+                return response['answer']
+            elif response['status'] == 'nohandler':
+                raise RemoteCallException("nohandler")
+            elif response['status'] == 'exception':
+                exception_name = response.get('exception_name')
+                exception_msg = response.get('exception_msg')
+                raise RemoteCallException(
+                    "exception", 
+                    exception_name = response.get('exception_name'),
+                    exception_msg = response.get('exception_msg')
+                )
+            else:
+                raise RemoteCallException(None)
+
+
+        if (datetime.utcnow() - start_time).total_seconds() >= timeout:
+            raise Exception("Ask is not answered: timed out")
+        else:
+            time.sleep(check_interval)
+
+
+def handle_server_ask(channel, handlers):
+    """Called by job submitter to answer ask from server with handlers
+    """
+    if handlers is None:
+        return
+        
+    if not channel.has_json(SERVER_TO_CLIENT_REQUEST):
+        return
+
+    content = channel.read_json(SERVER_TO_CLIENT_REQUEST)
+    channel.delete_json(SERVER_TO_CLIENT_REQUEST)
+
+    for handler in handlers:
+        try:
+            handled, out = handler(content)
+            if handled:
+                channel.write_json(
+                    SERVER_TO_CLIENT_RESPONSE,
+                    {
+                        'status': 'ok',
+                        'answer': out
+                    }
+                )
+            return
+        except Exception as e:
+                channel.write_json(
+                    SERVER_TO_CLIENT_RESPONSE,
+                    {
+                        'status': 'exception',
+                        "exception_name": e.__class__.__name__,
+                        "exception_msg": str(e)
+                    }
+                )
+                return
+
+    channel.write_json(
+        SERVER_TO_CLIENT_RESPONSE,
+        {
+            'status': 'nohandler'
+        }
+    )
+    return
+
