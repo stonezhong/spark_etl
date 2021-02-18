@@ -5,9 +5,6 @@ from .abstract_deployer import AbstractDeployer
 from spark_etl import Build
 from spark_etl.exceptions import SparkETLDeploymentFailure
 
-import boto3
-from botocore.config import Config
-
 class S3Deployer(AbstractDeployer):
     """
     This deployer deploys application to AWS S3 buckets
@@ -17,6 +14,8 @@ class S3Deployer(AbstractDeployer):
 
 
     def deploy(self, build_dir, deployment_location):
+        import boto3
+
         o = urlparse(deployment_location)
         if o.scheme != 's3':
             raise SparkETLDeploymentFailure("deployment_location must be in s3")

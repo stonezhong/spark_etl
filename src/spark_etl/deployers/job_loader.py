@@ -138,9 +138,16 @@ parser.add_argument(
 parser.add_argument(
     "--base-lib-dir", type=str, required=False, help="Python library directory for drivers and executors",
 )
+parser.add_argument(
+    "--lib-zip", type=str, required=True, help="Zipped library",
+)
 
 args = parser.parse_args()
 spark = SparkSession.builder.appName("RunJob").getOrCreate()
+
+sc = spark.sparkContext
+sc.addFile(args.lib_zip)
+
 _install_libs(args.run_id, args.base_lib_dir)
 
 # get input
