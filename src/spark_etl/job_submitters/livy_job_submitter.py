@@ -12,6 +12,7 @@ import requests
 from .abstract_job_submitter import AbstractJobSubmitter
 from spark_etl.utils import CLIHandler
 from spark_etl.core import ClientChannelInterface
+from spark_etl.exceptions import SparkETLLaunchFailure
 
 class ClientChannel(ClientChannelInterface):
     def __init__(self, bridge, stage_dir, run_dir, run_id):
@@ -160,8 +161,8 @@ class LivyJobSubmitter(AbstractJobSubmitter):
         client_channel.write_json("input.json", args)
 
         o = urlparse(deployment_location)
-        if o.scheme != 'hdfs':
-            raise SparkETLDeploymentFailure("deployment_location must be in hdfs")
+        if o.scheme not in ('hdfs', 's3'):
+            raise SparkETLLaunchFailure("deployment_location must be in hdfs or s3")
 
         headers = {
             "Content-Type": "application/json",
@@ -172,12 +173,16 @@ class LivyJobSubmitter(AbstractJobSubmitter):
         config = {
             'file': os.path.join(deployment_location, "job_loader.py"),
             'pyFiles': [ os.path.join(deployment_location, "app.zip") ],
+            'files': [ os.path.join(deployment_location, "lib.zip") ],
             'args': [
                 '--run-id', run_id,
                 '--run-dir', os.path.join(run_dir, run_id),
-                '--lib-url', os.path.join(deployment_location, 'lib.zip')
             ]
         }
+        base_lib_dir = self.config.get('base_lib_dir')
+        if base_lib_dir:
+            config['args'].extend(['--base-lib-dir', base_lib_dir])
+
         config.update(options)
         config.pop("display_name", None)  # livy job submitter does not support display_name
 
