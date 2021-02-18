@@ -187,17 +187,25 @@ class LivyJobSubmitter(AbstractJobSubmitter):
         config.pop("display_name", None)  # livy job submitter does not support display_name
 
         service_url = self.config['service_url']
-        username = self.config['username']
-        password = self.config['password']
+        username = self.config.get('username')
+        password = self.config.get('password')
 
         # print(json.dumps(config))
-        r = requests.post(
-            os.path.join(service_url, "batches"),
-            data=json.dumps(config),
-            headers=headers,
-            auth=HTTPBasicAuth(username, password),
-            verify=False
-        )
+        if username is None:
+            r = requests.post(
+                os.path.join(service_url, "batches"),
+                data=json.dumps(config),
+                headers=headers,
+                verify=False
+            )
+        else:
+            r = requests.post(
+                os.path.join(service_url, "batches"),
+                data=json.dumps(config),
+                headers=headers,
+                auth=HTTPBasicAuth(username, password),
+                verify=False
+            )
         if r.status_code not in [200, 201]:
             msg = "Failed to submit the job, status: {}, error message: \"{}\"".format(
                 r.status_code,
