@@ -45,6 +45,11 @@ def main():
     parser.add_argument(
         "--args", help="Application args"
     )
+    parser.add_argument(
+        "--cli-mode",
+        action="store_true",
+        help="Enter cli mode?"
+    )
     args = parser.parse_args()
     if args.action == "build":
         do_build(args)
@@ -104,7 +109,8 @@ def do_run(args):
     ret = job_submitter.run(
         f"{args.deploy_dir}/{args.version}",
         options=config.get("job_run_options", {}),
-        args=get_app_args(args)
+        args=get_app_args(args),
+        cli_mode=args.cli_mode
     )
     print("return:")
     print(json.dumps(ret, indent=4))
