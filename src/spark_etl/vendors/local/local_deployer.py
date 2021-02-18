@@ -48,15 +48,6 @@ class LocalDeployer(AbstractDeployer):
         shutil.copyfile(src, dst)
         print(f"Copy from {src} to {dst}")
 
-        # now unzip the lib
-        os.makedirs(os.path.join(target_dir, 'lib'))
-        subprocess.check_call([
-            'unzip',
-            os.path.join(target_dir, 'lib.zip'),
-            '-d',
-            os.path.join(target_dir, 'lib')
-        ])
-        os.remove(os.path.join(target_dir, 'lib.zip'))
         print("Deployment is done")
 
 
