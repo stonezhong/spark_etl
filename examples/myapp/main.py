@@ -7,9 +7,9 @@ def main(spark, input_args, sysops={}):
 
     Student = Row("id", "name")
     df = spark.createDataFrame([
-        Student(1, 'Liu Bei'),
-        Student(3, 'Guan Yu'),
-        Student(2, 'Zhang Fei')
+        Student(1, 'Apple'),
+        Student(3, 'Orange'),
+        Student(2, 'Banana')
     ])
     df.show()
     return {"result": "ok"}

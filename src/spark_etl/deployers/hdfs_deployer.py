@@ -57,5 +57,5 @@ class HDFSDeployer(AbstractDeployer):
         artifacts.append("job_loader.py")
         for artifact in artifacts:
             _execute(bridge, f"hdfs dfs -copyFromLocal {bridge_dir}/{artifact} {dest_location}/{artifact}")
-        
+
         _execute(bridge, f"rm -rf {bridge_dir}")

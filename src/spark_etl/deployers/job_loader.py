@@ -7,8 +7,12 @@ import subprocess
 import sys
 import tempfile
 import json
+import random
 
+from pyspark import SparkFiles
 from pyspark.sql import SparkSession
+
+random.seed()
 
 def get_server_channel(run_dir):
     # from spark_etl.core import ServerChannelInterface
@@ -66,11 +70,11 @@ def get_server_channel(run_dir):
 
 
 # lib installer
-def _install_libs(lib_url):
+def _install_libs(run_id, base_lib_dir):
     ##########################################
     #
     # |
-    # +-- python_libs
+    # +-- {lib_dir}
     #       |
     #       +-- uuid1.zip
     #       |
@@ -80,19 +84,46 @@ def _install_libs(lib_url):
     #       |
     #       +-- uuid2  (lib extracted)
     ##########################################
-    print("job_loader._install_libs: enter, lib_url = {}".format(lib_url))
-    current_dir = os.getcwd()
-    unique_id = str(uuid.uuid4())
-    lib_dir = os.path.join(current_dir, 'python_libs')
-    bin_dir = os.path.join(lib_dir, unique_id)
-    lib_zip = os.path.join(lib_dir, f"{unique_id}.zip")
-    os.makedirs(bin_dir, exist_ok=True)
+    print("job_loader._install_libs: enter, run_id = {}".format(run_id))
 
-    # lib_url must be a HDFS url (or perhaps can be handled by a hdfs connector)
-    subprocess.check_call(["hdfs", "dfs", "-copyToLocal", lib_url, lib_zip])
-    subprocess.check_call(['unzip', '-qq', lib_zip, "-d", bin_dir])
-    sys.path.insert(0, bin_dir)
-    print("job_loader._install_libs: exit")
+    if base_lib_dir:
+        current_dir = base_lib_dir
+    else:
+        current_dir = os.getcwd()
+    print(f"current_dir = {current_dir}")
+
+    base_dir    = os.path.join(current_dir, run_id)
+    lib_dir     = os.path.join(base_dir, 'python_libs')
+    lib_zip     = SparkFiles.get("lib.zip")
+    lock_name   = os.path.join(base_dir, '__lock__')
+
+    os.makedirs(base_dir, exist_ok=True)
+
+    for i in range(0, 100):
+        try:
+            lock_fh = os.open(lock_name, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(lock_fh)
+            try:
+                if not os.path.isdir(lib_dir):
+                    print("_install_libs: install lib starts")
+                    os.makedirs(lib_dir)
+                    subprocess.check_call(['unzip', "-qq", lib_zip, "-d", lib_dir])
+                    print("_install_libs: install lib done")
+                if lib_dir not in sys.path:
+                    print(f"_install_libs: add {lib_dir} path")
+                    sys.path.insert(0, lib_dir)
+                print("job_loader._install_libs: exit")
+                return
+            finally:
+                os.remove(lock_name)
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                time.sleep(random.randint(1, 10))
+                continue
+            raise
+
+    raise Exception("Failed to install libraries!")
+
 
 
 print("job_loader.py: enter")
@@ -105,14 +136,12 @@ parser.add_argument(
     "--run-dir", type=str, required=True, help="Run Directory",
 )
 parser.add_argument(
-    "--lib-url", type=str, required=True, help="Library URL",
+    "--base-lib-dir", type=str, required=False, help="Python library directory for drivers and executors",
 )
 
 args = parser.parse_args()
-
-_install_libs(args.lib_url)
-
 spark = SparkSession.builder.appName("RunJob").getOrCreate()
+_install_libs(args.run_id, args.base_lib_dir)
 
 # get input
 server_channel = get_server_channel(args.run_dir)
@@ -121,6 +150,7 @@ input_args = server_channel.read_json(spark, "input.json")
 try:
     entry = importlib.import_module("main")
     result = entry.main(spark, input_args, sysops={
+        "install_libs": lambda : _install_libs(run_id, args.base_lib_dir),
         "channel": get_server_channel(args.run_dir)
     })
 
