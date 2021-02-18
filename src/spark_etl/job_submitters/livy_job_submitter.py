@@ -173,10 +173,10 @@ class LivyJobSubmitter(AbstractJobSubmitter):
         config = {
             'file': os.path.join(deployment_location, "job_loader.py"),
             'pyFiles': [ os.path.join(deployment_location, "app.zip") ],
-            'files': [ os.path.join(deployment_location, "lib.zip") ],
             'args': [
                 '--run-id', run_id,
                 '--run-dir', os.path.join(run_dir, run_id),
+                '--lib-zip', os.path.join(deployment_location, "lib.zip")
             ]
         }
         base_lib_dir = self.config.get('base_lib_dir')
@@ -255,7 +255,11 @@ class LivyJobSubmitter(AbstractJobSubmitter):
             # we enter the cli mode upon first reached the running status
             if cli_mode and not cli_entered and job_state == 'running':
                 cli_entered = True
-                cli_handler = CLIHandler(client_channel, lambda : get_job_status()['state'] not in ('success', 'dead', 'killed'))
+                cli_handler = CLIHandler(
+                    client_channel,
+                    lambda : get_job_status()['state'] not in ('success', 'dead', 'killed'),
+                    handlers
+                )
                 cli_handler.loop()
 
 
