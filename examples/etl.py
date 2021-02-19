@@ -4,6 +4,7 @@
 import argparse
 import json
 import importlib
+import os
 
 from spark_etl import Application, Build
 
@@ -92,10 +93,30 @@ def get_job_submitter(job_submitter_config):
     return klass(*args, **kwargs)
 
 
+def get_common_requirements():
+    common_req_filename = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "common_requirements.txt"
+    )
+    if not os.path.isfile(common_req_filename):
+        return []
+
+    packages = []
+    with open(common_req_filename, "rt") as f:
+        for line in f:
+            if line.startswith("#"):
+                continue
+            l = line.strip()
+            if len(l) > 0:
+                packages.append(l)
+    return packages
+
+
 # build an application
 def do_build(args):
+    if os.path.join()
     app = Application(args.app_dir)
-    app.build(args.build_dir)
+    app.build(args.build_dir, default_libs=get_common_requirements())
 
 def do_deploy(args):
     config = get_config(args)
