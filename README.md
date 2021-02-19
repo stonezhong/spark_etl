@@ -7,7 +7,7 @@
         * [Application entry signature](#application-entry-signature)
     * [Job Deployer](#job-deployer)
     * [Job Submitter](#job-submitter)
-* [Tool: etl.py](#tool-etl-py)
+* [Tool: etl.py](#tool-etlpy)
     * [Build an application](#build-an-application)
     * [Deploy and run application](#deploy-and-run-application)
 
