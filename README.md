@@ -17,6 +17,8 @@ spark_etl provide a platform independent way of building spark application.
 ## Benefit
 Your application deployed and running using spark-etl is spark provider agnostic. Which means, for example, you can move your application from Azure HDInsight to AWS EMR without changing your application's code.
 
+You can also run a down-scaled version of your data lake with pyspark in a laptop, since pyspark is a supported spark platform, you can validate your spark application with pyspark, instead of run it in cloud, to save cost.
+
 ## Supported platforms
 <table>
     <tr>
