@@ -3,8 +3,8 @@
         "class": "spark_etl.deployers.S3Deployer",
         "args": [
             {
-                "aws_access_key_id": "XXX",
-                "aws_secret_access_key": "XXX"
+                "aws_access_key_id": "***",
+                "aws_secret_access_key": "***"
             }
         ]
     },
@@ -13,12 +13,9 @@
         "args": [
             {
                 "service_url": "http://localhost:8998/",
-                "username": "root",
-                "password": "changeme",
                 "bridge": "emrmain",
                 "stage_dir": "/home/hadoop/.stage",
-                "run_dir": "s3://stonezhong-emr-runs",
-                "base_lib_dir": "/home/hadoop/jobs"
+                "run_dir": "s3://stonezhong-emr-runs"
             }
         ]
     },
