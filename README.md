@@ -105,6 +105,9 @@ You can also run a down-scaled version of your data lake with pyspark in a lapto
     </tr>
 </table>
 
+# Deploy and run application
+Please see the [Demos](https://github.com/stonezhong/spark_etl/wiki#demos)
+
 # APIs
 ## Application
 An application is a pyspark application, so far we only support pyspark, Java and Scala support will be added latter. An application contains:
@@ -148,6 +151,4 @@ To build an application, run
 
 * **Build is mostly platform independent. You can put platform related package in file `common_requirements.txt`**
 
-# Deploy and run application
-Please see the [Demos](https://github.com/stonezhong/spark_etl/wiki#demos)
 
