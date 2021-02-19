@@ -1,2 +1,2 @@
 spark-etl==0.0.81
-oci-core==0.0.13
+# oci-core==0.0.13
