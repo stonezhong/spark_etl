@@ -117,21 +117,11 @@ def main(spark, input_args, sysops={}):
 [Here](examples/myapp) is an example.
 
 ## Job Deployer
-* A job deployer has method `deploy(build_dir, destination_location)`, it deploy the application to the destination location
-* spark_etl support the following deployer
-    * `spark_etl.vendors.local.LocalDeployer`
-    * `spark_etl.deployers.HDFSDeployer`
-    * `spark_etl.vendors.oracle.DataflowDeployer`
+For job deployers, please check the [wiki](https://github.com/stonezhong/spark_etl/wiki#job-deployer-classes) .
 
 
 ## Job Submitter
-* A job submitter has method `run(deployment_location, options={}, args={}, handlers=[], on_job_submitted=None)`, it submit a deployed job
-
-* spark_etl support the following job submitter
-    * `spark_etl.vendors.local.PySparkJobSubmitter`
-    * `spark_etl.job_submitters.livy_job_submitter.LivyJobSubmitter`
-    * `spark_etl.vendors.oracle.DataflowJobSubmitter`
-* Job summiter's `run` function returns the retrun value from job's `main` function.
+For job submitters, please check the [wiki](https://github.com/stonezhong/spark_etl/wiki#job-submitter-classes)
 
 
 # Tool: etl.py
@@ -144,36 +134,8 @@ To build an application, run
 * `<build-dir>` is the directory where you want your build to be deployed
     * Your build actually located at `<build-dir>/<version>`, where `<version>` is specified by application's manifest file
 
-* **Build is mostly platform independent. You need to depend on package oci-core if you intent to use oci Dataflow**
+* **Build is mostly platform independent. You can put platform related package in file `common_requirements.txt`**
 
+# Deploy and run application
+Please see the [Demos](https://github.com/stonezhong/spark_etl/wiki#demos)
 
-## Deplay an application
-```
-./etl.py -a deploy \
-    -c <config-filename> \
-    --build-dir <build-dir> \
-    --deploy-dir <deploy-dir>
-```
-
-* `-c <config-filename>`: this option specify the config file to use for the deployment
-* `--build-dir <build-dir>`: this option specify where to look for the build bits to deploy
-* `--deolpy-dir <deploy-dir>`: this option specify what is the destination for the deployment
-
-## Run a job
-```
-./etl.py -a run \
-    -c <config-filename> \
-    --deploy-dir <deploy-dir> \
-    --version <version> \
-    --args <input-json-file>
-```
-* `-c <config-filename>`: this option specify the config file
-* `--build-dir <build-dir>`: this option specify where to look for the build bits to run
-* `--version <version>`: this option specify which version of the app to run
-* `--args <input-json-file>`: optional parameter for input variable for the job. The `<input-json-file>` points to a json file, the value of the file will be passed to job's main function in `input_args` parameter. If this option is missing, the `input_args` will be set to `{}` when calling the `main` function of the job.
-* It prints the return value of the `main` function of the job
-
-# Examples
-* [Build, deploy and run in local spark](examples/test-local-spark.md)
-* [Build, deploy and run in spark cluster](examples/test-native-spark.md)
-* [Build, deploy and run in OCI Dataflow](examples/test-oci-dataflow.md)
