@@ -114,7 +114,6 @@ def get_common_requirements():
 
 # build an application
 def do_build(args):
-    if os.path.join()
     app = Application(args.app_dir)
     app.build(args.build_dir, default_libs=get_common_requirements())
 

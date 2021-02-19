@@ -70,7 +70,7 @@ def get_server_channel(run_dir):
 
 
 # lib installer
-def _install_libs(run_id, base_lib_dir):
+def _install_libs(run_id):
     ##########################################
     #
     # |
@@ -86,10 +86,7 @@ def _install_libs(run_id, base_lib_dir):
     ##########################################
     print("job_loader._install_libs: enter, run_id = {}".format(run_id))
 
-    if base_lib_dir:
-        current_dir = base_lib_dir
-    else:
-        current_dir = os.getcwd()
+    current_dir = os.path.dirname(os.path.abspath(__file__))
     print(f"current_dir = {current_dir}")
 
     base_dir    = os.path.join(current_dir, run_id)
@@ -136,9 +133,6 @@ parser.add_argument(
     "--run-dir", type=str, required=True, help="Run Directory",
 )
 parser.add_argument(
-    "--base-lib-dir", type=str, required=False, help="Python library directory for drivers and executors",
-)
-parser.add_argument(
     "--lib-zip", type=str, required=True, help="Zipped library",
 )
 
@@ -148,7 +142,7 @@ spark = SparkSession.builder.appName("RunJob").getOrCreate()
 sc = spark.sparkContext
 sc.addFile(args.lib_zip)
 
-_install_libs(args.run_id, args.base_lib_dir)
+_install_libs(args.run_id)
 
 # get input
 server_channel = get_server_channel(args.run_dir)
@@ -157,7 +151,7 @@ input_args = server_channel.read_json(spark, "input.json")
 try:
     entry = importlib.import_module("main")
     result = entry.main(spark, input_args, sysops={
-        "install_libs": lambda : _install_libs(run_id, args.base_lib_dir),
+        "install_libs": lambda : _install_libs(run_id),
         "channel": get_server_channel(args.run_dir)
     })
 
