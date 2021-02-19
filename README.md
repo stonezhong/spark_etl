@@ -16,12 +16,20 @@ See [https://stonezhong.github.io/spark_etl/](https://stonezhong.github.io/spark
 # Overview
 
 ## Goal
-spark_etl provide a platform independent way of building spark application.
+There are many public clouds provide managed Apache Spark as service, such as databricks, AWS EMR, Oracle OCI DataFlow, see the table below for a complete list.
+
+However, each platform has it's own way of launching Spark jobs, and the way to launch spark jobs between platforms are not compatible with each other.
+
+spark-etl is a python package, which simplifies the spark application management cross platforms, with 3 steps:
+* Build your spark application
+* Deploy your spark application
+* Run your spark application
+
 
 ## Benefit
-Your application deployed and running using spark-etl is spark provider agnostic. Which means, for example, you can move your application from Azure HDInsight to AWS EMR without changing your application's code.
+Your application using spark-etl is spark provider agnostic. For example, you can move your application from Azure HDInsight to AWS EMR without changing your application's code.
 
-You can also run a down-scaled version of your data lake with pyspark in a laptop, since pyspark is a supported spark platform, you can validate your spark application with pyspark, instead of run it in cloud, to save cost.
+You can also run a down-scaled version of your data lake with pyspark in a laptop, since pyspark is a supported spark platform, with this feature, you can validate your spark application with pyspark on your laptop, instead of run it in cloud, to save cost.
 
 ## Supported platforms
 <table>
