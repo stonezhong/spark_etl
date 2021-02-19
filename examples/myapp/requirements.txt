@@ -1,5 +1,5 @@
 simplejson==3.17.0
-spark-etl==0.0.80
+spark-etl==0.0.81
 
 # add this if you want to use OCI DataFlow
-# oci-core==0.0.3
+# oci-core==0.0.13
