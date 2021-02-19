@@ -20,7 +20,7 @@ There are many public clouds provide managed Apache Spark as service, such as da
 
 However, each platform has it's own way of launching Spark jobs, and the way to launch spark jobs between platforms are not compatible with each other.
 
-spark-etl is a python package, which simplifies the spark application management cross platforms, with 3 steps:
+spark-etl is a python package, which simplifies the spark application management cross platforms, with 3 uniformed steps:
 * Build your spark application
 * Deploy your spark application
 * Run your spark application
