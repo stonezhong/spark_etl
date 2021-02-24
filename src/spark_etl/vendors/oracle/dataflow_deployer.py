@@ -92,6 +92,7 @@ class DataflowDeployer(AbstractDeployer):
             spark_version="2.4.4",
             file_uri=f"{destination_location}/{manifest['version']}/job_loader.py",
             language="PYTHON",
+            archive_uri=dataflow.get("archive_uri")
         )
 
         r = df_client.create_application(
