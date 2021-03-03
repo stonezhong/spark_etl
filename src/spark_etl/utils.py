@@ -5,6 +5,7 @@ from contextlib import redirect_stdout, redirect_stderr
 import code
 from datetime import datetime
 import readline
+import traceback
 
 from termcolor import colored, cprint
 
@@ -347,6 +348,7 @@ def handle_server_ask(channel, handlers):
 
     content = channel.read_json(SERVER_TO_CLIENT_REQUEST)
     channel.delete_json(SERVER_TO_CLIENT_REQUEST)
+    print(f"handle_server_ask: topic={content.get('topic')}")
 
     for handler in handlers:
         try:
@@ -361,6 +363,7 @@ def handle_server_ask(channel, handlers):
                 )
             return
         except Exception as e:
+                traceback.print_exc() 
                 channel.write_json(
                     SERVER_TO_CLIENT_RESPONSE,
                     {
