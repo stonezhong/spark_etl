@@ -1,5 +1,4 @@
 from .abstract_deployer import AbstractDeployer
-from .hdfs_deployer import HDFSDeployer
 
 # User should cherry pick deployers from the deployer files
 # for example:
