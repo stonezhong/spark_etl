@@ -109,6 +109,8 @@ You can also run a down-scaled version of your data lake with pyspark in a lapto
 Please see the [Demos](https://github.com/stonezhong/spark_etl/wiki#demos)
 
 # APIs
+[pydocs for APIs](https://stonezhong.github.io/spark_etl/pydocs/spark_etl.html)
+
 ## Application
 An application is a pyspark application, so far we only support pyspark, Java and Scala support will be added latter. An application contains:
 * A `main.py` file which contain the application entry
