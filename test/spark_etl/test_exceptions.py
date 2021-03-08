@@ -1,8 +1,6 @@
 import pytest
 
-from spark_etl import SparkETLException, SparkETLDeploymentFailure, SparkETLLaunchFailure, \
-    SparkETLKillFailure, SparkETLGetStatusFailure
-
+from spark_etl import SparkETLException, SparkETLDeploymentFailure, SparkETLLaunchFailure
 def test_create_exceptions():
     exception = SparkETLException("foo")
     assert isinstance(exception, Exception)
@@ -20,12 +18,3 @@ def test_create_exceptions():
     with pytest.raises(SparkETLLaunchFailure):
         raise exception
 
-    exception = SparkETLKillFailure("foo")
-    assert isinstance(exception, SparkETLException)
-    with pytest.raises(SparkETLKillFailure):
-        raise exception
-
-    exception = SparkETLGetStatusFailure("foo")
-    assert isinstance(exception, SparkETLException)
-    with pytest.raises(SparkETLGetStatusFailure):
-        raise exception
