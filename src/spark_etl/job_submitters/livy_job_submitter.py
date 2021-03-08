@@ -180,9 +180,6 @@ class LivyJobSubmitter(AbstractJobSubmitter):
                 '--lib-zip', os.path.join(deployment_location, "lib.zip")
             ]
         }
-        base_lib_dir = self.config.get('base_lib_dir')
-        if base_lib_dir:
-            config['args'].extend(['--base-lib-dir', base_lib_dir])
 
         config.update(options)
         config.pop("display_name", None)  # livy job submitter does not support display_name
@@ -237,7 +234,8 @@ class LivyJobSubmitter(AbstractJobSubmitter):
                     r.status_code,
                     r.content
                 )
-                raise SparkETLLaunchFailure(msg)
+                # this is considered unhandled
+                raise Exception(msg)
             ret = json.loads(r.content.decode("utf8"))
             return ret
 

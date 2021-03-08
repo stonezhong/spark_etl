@@ -147,7 +147,7 @@ def test_livy_job_submitter(
     requests_post.side_effect = [
         mock.PropertyMock(
             status_code=200,
-            content=b'{"id": 1, "state": "running", "appId": "abc123"}'
+            content=b'{"id": 1, "state": "running", "appId": "abc123", "log":["a"]}'
         )
     ]
 
@@ -167,9 +167,12 @@ def test_livy_job_submitter(
         "bar": 2
     }
 
+    on_job_submitted = mock.Mock()
+
     livy_job_submitter_with_auth.run(
         "hdfs:///beta/etl/apps/dummy/1.0.0.0",
-        args=args
+        args=args,
+        on_job_submitted = on_job_submitted
     )
 
     # it will create a run directory
@@ -209,6 +212,11 @@ def test_livy_job_submitter(
         },
         auth=HTTPBasicAuth("foo", "***"),
         verify=False
+    )
+
+    on_job_submitted.assert_called_with(
+        TEST_UUID_STR,
+        vendor_info={"id": 1, "state": "running", "appId": "abc123", "log":["a"]}
     )
 
 
@@ -260,7 +268,7 @@ def test_livy_job_submitter_submit_failed(
         )
 
 
-# successful case, no auth info
+# job failed case
 @mock.patch("requests.get")
 @mock.patch("requests.post")
 @mock.patch("uuid.uuid4", return_value=UUID(TEST_UUID_STR))
@@ -301,6 +309,53 @@ def test_livy_job_submitter_job_failed(
     }
 
     with pytest.raises(SparkETLLaunchFailure, match="Job failed"):
+        livy_job_submitter.run(
+            "hdfs:///beta/etl/apps/dummy/1.0.0.0",
+            args=args
+        )
+
+
+# failed to get job status
+@mock.patch("requests.get")
+@mock.patch("requests.post")
+@mock.patch("uuid.uuid4", return_value=UUID(TEST_UUID_STR))
+@mock.patch("subprocess.check_call")
+@mock.patch("spark_etl.job_submitters.livy_job_submitter.ClientChannel")
+def test_livy_job_submitter_job_status_failed(
+    MockClientChannel,
+    mock_subprocess_check_call,
+    mock_uuid4,
+    requests_post,
+    requests_get,
+    livy_job_submitter
+):
+    mock_client_channel = mock.Mock()
+    MockClientChannel.return_value = mock_client_channel
+
+    requests_post.side_effect = [
+        mock.PropertyMock(
+            status_code=200,
+            content=b'{"id": 1, "state": "running", "appId": "abc123"}'
+        )
+    ]
+
+    requests_get.side_effect = [
+        mock.PropertyMock(
+            status_code=200,
+            content=b'{"id": 1, "state": "running", "appId": "abc123"}'
+        ),
+        mock.PropertyMock(
+            status_code=500,
+            content=b'{"id": 1, "state": "dead", "appId": "abc123"}'
+        ),
+    ]
+
+    args = {
+        "foo": 1,
+        "bar": 2
+    }
+
+    with pytest.raises(Exception, match="Failed to get job status"):
         livy_job_submitter.run(
             "hdfs:///beta/etl/apps/dummy/1.0.0.0",
             args=args
