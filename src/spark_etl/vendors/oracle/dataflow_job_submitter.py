@@ -12,7 +12,7 @@ from oci_core import get_os_client, get_df_client, os_upload, os_upload_json, os
     os_has_object, os_delete_object
 
 from spark_etl.job_submitters import AbstractJobSubmitter
-from spark_etl import SparkETLLaunchFailure, SparkETLGetStatusFailure, SparkETLKillFailure
+from spark_etl import SparkETLLaunchFailure, SparkETLKillFailure
 from .tools import check_response, remote_execute
 from spark_etl.utils import CLIHandler, handle_server_ask
 from spark_etl.core import ClientChannelInterface

@@ -14,12 +14,3 @@ class SparkETLLaunchFailure(SparkETLException):
     def __init__(self, message, cause=None):
         super(SparkETLLaunchFailure, self).__init__(message, cause=cause)
 
-class SparkETLKillFailure(SparkETLException):
-    """spark-etl failed to kill an application run"""
-    def __init__(self, message, cause=None):
-        super(SparkETLKillFailure, self).__init__(message, cause=cause)
-
-class SparkETLGetStatusFailure(SparkETLException):
-    """spark-etl failed to get status of a launched application"""
-    def __init__(self, message, cause=None):
-        super(SparkETLGetStatusFailure, self).__init__(message, cause=cause)

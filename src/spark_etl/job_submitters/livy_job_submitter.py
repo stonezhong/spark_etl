@@ -145,6 +145,10 @@ class LivyJobSubmitter(AbstractJobSubmitter):
     # args.conf is the spark job config
     # args is arguments need to pass to the main entry
     def run(self, deployment_location, options={}, args={}, handlers=[], on_job_submitted=None, cli_mode=False):
+        o = urlparse(deployment_location)
+        if o.scheme not in ('hdfs', 's3'):
+            raise SparkETLLaunchFailure("deployment_location must be in hdfs or s3")
+
         bridge = self.config["bridge"]
         stage_dir = self.config['stage_dir']
         run_dir = self.config['run_dir']
@@ -160,9 +164,6 @@ class LivyJobSubmitter(AbstractJobSubmitter):
         client_channel = ClientChannel(bridge, stage_dir, run_dir, run_id)
         client_channel.write_json("input.json", args)
 
-        o = urlparse(deployment_location)
-        if o.scheme not in ('hdfs', 's3'):
-            raise SparkETLLaunchFailure("deployment_location must be in hdfs or s3")
 
         headers = {
             "Content-Type": "application/json",
@@ -211,7 +212,7 @@ class LivyJobSubmitter(AbstractJobSubmitter):
                 r.status_code,
                 r.content
             )
-            raise Exception(msg)
+            raise SparkETLLaunchFailure(msg)
 
         print(f'job submitted, run_id = {run_id}')
         ret = json.loads(r.content.decode("utf8"))
@@ -236,7 +237,7 @@ class LivyJobSubmitter(AbstractJobSubmitter):
                     r.status_code,
                     r.content
                 )
-                raise Exception(msg)
+                raise SparkETLLaunchFailure(msg)
             ret = json.loads(r.content.decode("utf8"))
             return ret
 
@@ -257,7 +258,7 @@ class LivyJobSubmitter(AbstractJobSubmitter):
                 print(f"job_state={job_state}")
                 if job_state == 'success':
                     return client_channel.read_json("result.json")
-                raise Exception("Job failed")
+                raise SparkETLLaunchFailure("Job failed")
             time.sleep(5)
 
             # we enter the cli mode upon first reached the running status
