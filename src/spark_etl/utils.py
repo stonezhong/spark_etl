@@ -9,18 +9,27 @@ import traceback
 
 from termcolor import colored, cprint
 
-CLI_REQUEST_NAME = "cli-request.json"
+CLI_REQUEST_NAME  = "cli-request.json"
 CLI_RESPONSE_NAME = "cli-response.json"
+HELP_TEXT         = """\
+******************************************************
+*                                                    *
+*              Spark-CLI command list                *
+*                                                    *
+******************************************************
 
-def handle_pwd(spark, user_input, channel):
-    channel.write_json(
-        spark,
-        CLI_RESPONSE_NAME,
-        {
-            "status": "ok",
-            "output": os.getcwd()
-        }
-    )
+@@help             -- print help
+@@bash             -- execute the buffer as BASH batch
+@@python           -- execute the buffer as python
+@@log <filename>   -- log to local file
+@@clear            -- clear buffer
+@@show             -- show buffer
+@@load <filename>  -- append content of file to the buffer
+@@mode off         -- turn off line mode
+@@mode bash        -- turn on line mode, each line is bash command
+@@mode python      -- turn on line mode, each line is a python code
+@@quit             -- quit Spark-CLI
+"""
 
 def handle_bash(spark, user_input, channel):
     cmd_buffer = '\n'.join(user_input['lines'])
@@ -47,7 +56,7 @@ def handle_python(spark, user_input, console, channel):
             console.runsource(source, symbol="exec")
 
     channel.write_json(
-        spark, 
+        spark,
         CLI_RESPONSE_NAME,
         {
             "status": "ok",
@@ -67,7 +76,7 @@ class CLIHandler:
             self.is_job_active = lambda : True
         else:
             self.is_job_active = is_job_active
-        
+
         self.handlers = handlers
         self.last_job_ok_time = None
 
@@ -113,13 +122,13 @@ class CLIHandler:
 
                 command = input(prompt)
 
-                if command == "@@quit":
-                    self.client_channel.write_json(CLI_REQUEST_NAME, {"type": "@@quit"})
-                    is_waiting_for_response = True
+                if command == "@@help":
+                    print(HELP_TEXT)
+                    print("")
                     continue
 
-                if command == "@@pwd":
-                    self.client_channel.write_json(CLI_REQUEST_NAME, {"type": "@@pwd"})
+                if command == "@@quit":
+                    self.client_channel.write_json(CLI_REQUEST_NAME, {"type": "@@quit"})
                     is_waiting_for_response = True
                     continue
 
@@ -250,11 +259,11 @@ def cli_main(spark, args, sysops={}):
     console = PySparkConsole(locals={'spark': spark, 'sysops': sysops})
 
     channel.write_json(
-        spark, 
+        spark,
         CLI_RESPONSE_NAME,
         {
             "status": "ok",
-            "output": "Welcome to OCI Spark-CLI Interface",
+            "output": "Welcome to Spark-CLI\n\n" + HELP_TEXT,
         }
     )
 
@@ -272,13 +281,10 @@ def cli_main(spark, args, sysops={}):
                 CLI_RESPONSE_NAME,
                 {
                     "status": "ok",
-                    "output": "Server quit gracefully",
+                    "output": "Spark-CLI quit gracefully",
                 }
             )
             break
-        if user_input["type"] == "@@pwd":
-            handle_pwd(spark, user_input, channel)
-            continue
         if user_input["type"] == "@@bash":
             handle_bash(spark, user_input, channel)
             continue
@@ -323,7 +329,7 @@ def server_ask_client(spark, channel, content, timeout=600, check_interval=5):
                 exception_name = response.get('exception_name')
                 exception_msg = response.get('exception_msg')
                 raise RemoteCallException(
-                    "exception", 
+                    "exception",
                     exception_name = response.get('exception_name'),
                     exception_msg = response.get('exception_msg')
                 )
@@ -342,7 +348,7 @@ def handle_server_ask(channel, handlers):
     """
     if handlers is None:
         return
-        
+
     if not channel.has_json(SERVER_TO_CLIENT_REQUEST):
         return
 
@@ -363,7 +369,7 @@ def handle_server_ask(channel, handlers):
                 )
             return
         except Exception as e:
-                traceback.print_exc() 
+                traceback.print_exc()
                 channel.write_json(
                     SERVER_TO_CLIENT_RESPONSE,
                     {
