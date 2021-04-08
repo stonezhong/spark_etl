@@ -15,23 +15,47 @@ from spark_etl.core import ClientChannelInterface
 from spark_etl.exceptions import SparkETLLaunchFailure
 
 class ClientChannel(ClientChannelInterface):
-    def __init__(self, bridge, stage_dir, run_dir, run_id):
+    def __init__(self, bridge, stage_dir, run_dir, run_id, ssh_key_filename=None, ssh_username=None):
         self.bridge = bridge        # the bridge server's name which we can ssh to
         self.stage_dir = stage_dir  # stage_dir is on bridge
         self.run_dir = run_dir      # base dir for all runs, e.g. hdfs:///beta/etl/runs
         self.run_id  = run_id       # string, unique id of the run
+        self.ssh_key_filename = ssh_key_filename
+        self.ssh_username = ssh_username
+
+
+    def get_ssh_cmds(self):
+        ssh_cmds = ["ssh", "-q", "-o", "StrictHostKeyChecking no"]
+        if self.ssh_username:
+            ssh_cmds.append(f"{self.ssh_username}@{self.bridge}")
+        else:
+            ssh_cmds.append(self.bridge)
+        if self.ssh_key_filename:
+            ssh_cmds.extend(["-i", self.ssh_key_filename])
+        return ssh_cmds
+
+
+    def get_scp_cmds(self):
+        scp_cmds = ["scp", "-q", "-o", "StrictHostKeyChecking no"]
+        if self.ssh_key_filename:
+            scp_cmds.extend(["-i", self.ssh_key_filename])
+        return scp_cmds
+
+    def get_scp_hostname(self):
+        if self.ssh_username:
+            return f"{self.ssh_username}@{self.bridge}"
+        else:
+            return self.bridge
 
 
     def _create_stage_dir(self):
         # We are using stage_dir instead of temp dir to stage objects on bridge
         # the reason is, many cases temp dir is in memory and cannot hold large object
-        subprocess.check_call(
-            [
-                "ssh", "-q", self.bridge,
-                "mkdir", "-p", os.path.join(self.stage_dir, self.run_id)
-            ],
-            stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
-        )
+        ssh_cmds = self.get_ssh_cmds()
+        ssh_cmds.extend([
+            "mkdir", "-p", os.path.join(self.stage_dir, self.run_id)
+        ])
+        subprocess.check_call(ssh_cmds, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
 
     def read_json(self, name):
@@ -39,14 +63,15 @@ class ClientChannel(ClientChannelInterface):
         """
         self._create_stage_dir()
 
+        ssh_cmds = self.get_ssh_cmds()
         # copy to stage dir on bridge first
+        ssh_cmds.extend([
+            "hdfs", "dfs", "-copyToLocal", "-f",
+            os.path.join(self.run_dir, self.run_id, name),
+            os.path.join(self.stage_dir, self.run_id, name)
+        ])
         subprocess.check_call(
-            [
-                "ssh", "-q", self.bridge,
-                "hdfs", "dfs", "-copyToLocal", "-f",
-                os.path.join(self.run_dir, self.run_id, name),
-                os.path.join(self.stage_dir, self.run_id, name)
-            ],
+            ssh_cmds,
             stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
         )
 
@@ -54,14 +79,15 @@ class ClientChannel(ClientChannelInterface):
             stage_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
             stage_file.close()
 
+            scp_cmds = self.get_scp_cmds()
+            scp_cmds.extend([
+                os.path.join(
+                    f"{self.get_scp_hostname()}:{self.stage_dir}", self.run_id, name
+                ),
+                stage_file.name
+            ])
             subprocess.check_call(
-                [
-                    "scp", "-q",
-                    os.path.join(
-                        f"{self.bridge}:{self.stage_dir}", self.run_id, name
-                    ),
-                    stage_file.name
-                ],
+                scp_cmds,
                 stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
             )
 
@@ -74,12 +100,13 @@ class ClientChannel(ClientChannelInterface):
     def has_json(self, name):
         """check if a file with specific name exist or not in the HDFS run dir
         """
+        ssh_cmds = self.get_ssh_cmds()
+        ssh_cmds.extend([
+            "hdfs", "dfs", "-test", "-f",
+            os.path.join(self.run_dir, self.run_id, name)
+        ])
         exit_code = subprocess.call(
-            [
-                "ssh", "-q", self.bridge,
-                "hdfs", "dfs", "-test", "-f",
-                os.path.join(self.run_dir, self.run_id, name)
-            ],
+            ssh_cmds,
             stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
         )
         if exit_code == 0:
@@ -101,25 +128,28 @@ class ClientChannel(ClientChannelInterface):
                 json.dump(payload, f)
 
             # copy over to bridge at stage directory
+            scp_cmds = self.get_scp_cmds()
+            scp_cmds.extend([
+                stage_file.name,
+                os.path.join(
+                    f"{self.get_scp_hostname()}:{self.stage_dir}", self.run_id, name
+                )
+            ])
+
             subprocess.check_call(
-                [
-                    "scp", "-q",
-                    stage_file.name,
-                    os.path.join(
-                        f"{self.bridge}:{self.stage_dir}", self.run_id, name
-                    )
-                ],
+                scp_cmds,
                 stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
             )
 
             # then upload to HDFS, -f for overwrite if exist
+            ssh_cmds = self.get_ssh_cmds()
+            ssh_cmds.extend([
+                "hdfs", "dfs", "-copyFromLocal", "-f",
+                os.path.join(self.stage_dir, self.run_id, name),
+                os.path.join(self.run_dir, self.run_id, name)
+            ])
             subprocess.check_call(
-                [
-                    "ssh", "-q", self.bridge,
-                    "hdfs", "dfs", "-copyFromLocal", "-f",
-                    os.path.join(self.stage_dir, self.run_id, name),
-                    os.path.join(self.run_dir, self.run_id, name)
-                ],
+                ssh_cmds,
                 stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
             )
         finally:
@@ -127,12 +157,13 @@ class ClientChannel(ClientChannelInterface):
 
 
     def delete_json(self, name):
+        ssh_cmds = self.get_ssh_cmds()
+        ssh_cmds.extend([
+            "hdfs", "dfs", "-rm",
+            os.path.join(self.run_dir, self.run_id, name)
+        ])
         subprocess.check_call(
-            [
-                "ssh", "-q", self.bridge,
-                "hdfs", "dfs", "-rm",
-                os.path.join(self.run_dir, self.run_id, name)
-            ],
+            ssh_cmds,
             stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
         )
 
@@ -140,6 +171,17 @@ class ClientChannel(ClientChannelInterface):
 class LivyJobSubmitter(AbstractJobSubmitter):
     def __init__(self, config):
         super(LivyJobSubmitter, self).__init__(config)
+
+    def get_ssh_cmds(self, ssh_key_filename=None):
+        ssh_cmds = ["ssh", "-q", "-o", "StrictHostKeyChecking no"]
+        ssh_username = self.config.get('ssh_username')
+        if ssh_username:
+            ssh_cmds.append(f"{ssh_username}@{self.config['bridge']}")
+        else:
+            ssh_cmds.append(self.config['bridge'])
+        if ssh_key_filename:
+            ssh_cmds.extend(["-i", ssh_key_filename])
+        return ssh_cmds
 
     # options is vendor specific arguments
     # args.conf is the spark job config
@@ -149,19 +191,31 @@ class LivyJobSubmitter(AbstractJobSubmitter):
         if o.scheme not in ('hdfs', 's3'):
             raise SparkETLLaunchFailure("deployment_location must be in hdfs or s3")
 
+        ssh_key_filename = None
+        ssh_key = self.config.get("ssh_key")
+        if ssh_key:
+            ssh_key_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
+            ssh_key_file.write(ssh_key)
+            ssh_key_file.close()
+            ssh_key_filename = ssh_key_file.name
+
         bridge = self.config["bridge"]
         stage_dir = self.config['stage_dir']
         run_dir = self.config['run_dir']
 
         # create run dir
         run_id = str(uuid.uuid4())
-        subprocess.check_call([
-            "ssh", "-q", bridge,
+        ssh_cmds = self.get_ssh_cmds(ssh_key_filename)
+        ssh_cmds.extend([
             "hdfs", "dfs", "-mkdir", "-p",
             os.path.join(run_dir, run_id)
         ])
+        subprocess.check_call(ssh_cmds)
 
-        client_channel = ClientChannel(bridge, stage_dir, run_dir, run_id)
+        client_channel = ClientChannel(
+            bridge, stage_dir, run_dir, run_id,
+            ssh_key_filename=ssh_key_filename, ssh_username=self.config.get('ssh_username')
+        )
         client_channel.write_json("input.json", args)
 
 
