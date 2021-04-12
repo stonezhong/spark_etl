@@ -22,11 +22,19 @@ class S3Deployer(AbstractDeployer):
 
         build = Build(build_dir)
 
-        s3_client = boto3.client(
-            's3',
-            aws_access_key_id=self.config['aws_access_key_id'],
-            aws_secret_access_key=self.config['aws_secret_access_key']
-        )
+        args = {}
+        if 'aws_account' in self.config:
+            with open(self.config['aws_account'], "rt") as f:
+                aws_account_content     = json.load(f)
+                args['aws_access_key_id']       = aws_account_content['aws_access_key_id']
+                args['aws_secret_access_key']   = aws_account_content['aws_secret_access_key']
+        else:
+            if 'aws_access_key_id' in self.config:
+                args['aws_access_key_id']       = self.config['aws_access_key_id']
+                args['aws_secret_access_key']   = self.config['aws_secret_access_key']
+
+
+        s3_client = boto3.client('s3', **args)
         bucket_name = o.netloc
         s3_dirname = os.path.join(o.path[1:], build.version)
 
