@@ -52,13 +52,31 @@ class PySparkJobSubmitter(AbstractJobSubmitter):
             json.dump(args, f)
 
         client_channel = ClientChannel(run_dir, run_id)
-        p = subprocess.Popen([
+
+        run_args = [
             "spark-submit",
+        ]
+        if self.config['enable_aws_s3']:
+            run_args.extend([
+                "--packages",
+                "org.apache.hadoop:hadoop-aws:2.7.3"
+            ])
+
+        run_args.extend([
             os.path.join(deployment_location, "job_loader.py"),
             "--run-id", run_id,
             "--run-dir", run_dir,
             "--app-dir", app_dir
         ])
+        if self.config['enable_aws_s3']:
+            run_args.append("--enable-aws-s3")
+        if self.config['aws_account']:
+            run_args.extend([
+                '--aws-account',
+                self.config['aws_account']
+            ])
+
+        p = subprocess.Popen(run_args)
         exit_code = None
         cli_entered = False
 

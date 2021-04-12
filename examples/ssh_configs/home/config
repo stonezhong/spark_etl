@@ -1,0 +1,11 @@
+Host gw
+    HostName 10.0.0.18
+    Port 60000
+    User root
+    IdentityFile home
+
+Host spnode1
+    User root
+    ProxyCommand ssh gw -W spnode1:22
+    IdentityFile home
+

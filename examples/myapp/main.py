@@ -14,5 +14,8 @@ def main(spark, input_args, sysops={}):
         Student(2, 'Banana')
     ])
     df.show()
+
+    # df = spark.read.json("s3://stonezhong-lakehouse/data/tests/test_data.json")
+    # df.show()
     return {"result": "ok"}
 

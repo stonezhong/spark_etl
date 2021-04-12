@@ -13,84 +13,61 @@ from .abstract_job_submitter import AbstractJobSubmitter
 from spark_etl.utils import CLIHandler
 from spark_etl.core import ClientChannelInterface
 from spark_etl.exceptions import SparkETLLaunchFailure
+from spark_etl.ssh_config import SSHConfig
+
+#################################################################################
+# For ssh, we allow user to specify their own configs
+# The config file is normal ssh config file, however, the IdentityFile should
+# point to a key file id instead of filename
+#
+# The entire config is a json, which:
+# {
+#     config: string, same as ssh config,
+#     keys: {
+#         "foo": "...",         # content for key "foo"
+#         "bar": "..."          # content for key "bar"
+#     }
+# }
+#################################################################################
+
+
 
 class ClientChannel(ClientChannelInterface):
-    def __init__(self, bridge, stage_dir, run_dir, run_id, ssh_key_filename=None, ssh_username=None):
+    def __init__(self, bridge, stage_dir, run_dir, run_id, ssh_config):
         self.bridge = bridge        # the bridge server's name which we can ssh to
         self.stage_dir = stage_dir  # stage_dir is on bridge
         self.run_dir = run_dir      # base dir for all runs, e.g. hdfs:///beta/etl/runs
         self.run_id  = run_id       # string, unique id of the run
-        self.ssh_key_filename = ssh_key_filename
-        self.ssh_username = ssh_username
-
-
-    def get_ssh_cmds(self):
-        ssh_cmds = ["ssh", "-q", "-o", "StrictHostKeyChecking no"]
-        if self.ssh_username:
-            ssh_cmds.append(f"{self.ssh_username}@{self.bridge}")
-        else:
-            ssh_cmds.append(self.bridge)
-        if self.ssh_key_filename:
-            ssh_cmds.extend(["-i", self.ssh_key_filename])
-        return ssh_cmds
-
-
-    def get_scp_cmds(self):
-        scp_cmds = ["scp", "-q", "-o", "StrictHostKeyChecking no"]
-        if self.ssh_key_filename:
-            scp_cmds.extend(["-i", self.ssh_key_filename])
-        return scp_cmds
-
-    def get_scp_hostname(self):
-        if self.ssh_username:
-            return f"{self.ssh_username}@{self.bridge}"
-        else:
-            return self.bridge
+        self.ssh_config = ssh_config
 
 
     def _create_stage_dir(self):
         # We are using stage_dir instead of temp dir to stage objects on bridge
         # the reason is, many cases temp dir is in memory and cannot hold large object
-        ssh_cmds = self.get_ssh_cmds()
-        ssh_cmds.extend([
+        self.ssh_config.execute(self.bridge, [
             "mkdir", "-p", os.path.join(self.stage_dir, self.run_id)
         ])
-        subprocess.check_call(ssh_cmds, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
 
     def read_json(self, name):
         """read a json object from HDFS run dir with specific name
         """
         self._create_stage_dir()
-
-        ssh_cmds = self.get_ssh_cmds()
-        # copy to stage dir on bridge first
-        ssh_cmds.extend([
+        self.ssh_config.execute(self.bridge, [
             "hdfs", "dfs", "-copyToLocal", "-f",
             os.path.join(self.run_dir, self.run_id, name),
             os.path.join(self.stage_dir, self.run_id, name)
         ])
-        subprocess.check_call(
-            ssh_cmds,
-            stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
-        )
 
         try:
             stage_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
             stage_file.close()
-
-            scp_cmds = self.get_scp_cmds()
-            scp_cmds.extend([
+            self.ssh_config.scp(
                 os.path.join(
-                    f"{self.get_scp_hostname()}:{self.stage_dir}", self.run_id, name
+                    f"{self.bridge}:{self.stage_dir}", self.run_id, name
                 ),
                 stage_file.name
-            ])
-            subprocess.check_call(
-                scp_cmds,
-                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
             )
-
             with open(stage_file.name) as f:
                 return json.load(f)
         finally:
@@ -100,15 +77,10 @@ class ClientChannel(ClientChannelInterface):
     def has_json(self, name):
         """check if a file with specific name exist or not in the HDFS run dir
         """
-        ssh_cmds = self.get_ssh_cmds()
-        ssh_cmds.extend([
+        exit_code = self.ssh_config.execute(self.bridge, [
             "hdfs", "dfs", "-test", "-f",
             os.path.join(self.run_dir, self.run_id, name)
-        ])
-        exit_code = subprocess.call(
-            ssh_cmds,
-            stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
-        )
+        ], error_ok=True)
         if exit_code == 0:
             return True
         if exit_code == 1:
@@ -128,199 +100,200 @@ class ClientChannel(ClientChannelInterface):
                 json.dump(payload, f)
 
             # copy over to bridge at stage directory
-            scp_cmds = self.get_scp_cmds()
-            scp_cmds.extend([
+            self.ssh_config.scp(
                 stage_file.name,
                 os.path.join(
-                    f"{self.get_scp_hostname()}:{self.stage_dir}", self.run_id, name
+                    f"{self.bridge}:{self.stage_dir}", self.run_id, name
                 )
-            ])
-
-            subprocess.check_call(
-                scp_cmds,
-                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
             )
 
             # then upload to HDFS, -f for overwrite if exist
-            ssh_cmds = self.get_ssh_cmds()
-            ssh_cmds.extend([
+            self.ssh_config.execute(self.bridge, [
                 "hdfs", "dfs", "-copyFromLocal", "-f",
                 os.path.join(self.stage_dir, self.run_id, name),
                 os.path.join(self.run_dir, self.run_id, name)
             ])
-            subprocess.check_call(
-                ssh_cmds,
-                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
-            )
         finally:
             os.remove(stage_file.name)
 
 
     def delete_json(self, name):
-        ssh_cmds = self.get_ssh_cmds()
-        ssh_cmds.extend([
+        self.ssh_config.execute(self.bridge, [
             "hdfs", "dfs", "-rm",
             os.path.join(self.run_dir, self.run_id, name)
         ])
-        subprocess.check_call(
-            ssh_cmds,
-            stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
-        )
 
 
 class LivyJobSubmitter(AbstractJobSubmitter):
     def __init__(self, config):
         super(LivyJobSubmitter, self).__init__(config)
-
-    def get_ssh_cmds(self, ssh_key_filename=None):
-        ssh_cmds = ["ssh", "-q", "-o", "StrictHostKeyChecking no"]
-        ssh_username = self.config.get('ssh_username')
-        if ssh_username:
-            ssh_cmds.append(f"{ssh_username}@{self.config['bridge']}")
-        else:
-            ssh_cmds.append(self.config['bridge'])
-        if ssh_key_filename:
-            ssh_cmds.extend(["-i", ssh_key_filename])
-        return ssh_cmds
+        self.ssh_config = SSHConfig(config['ssh_config'])
 
     # options is vendor specific arguments
     # args.conf is the spark job config
     # args is arguments need to pass to the main entry
     def run(self, deployment_location, options={}, args={}, handlers=[], on_job_submitted=None, cli_mode=False):
-        o = urlparse(deployment_location)
-        if o.scheme not in ('hdfs', 's3'):
-            raise SparkETLLaunchFailure("deployment_location must be in hdfs or s3")
-
-        ssh_key_filename = None
-        ssh_key = self.config.get("ssh_key")
-        if ssh_key:
-            ssh_key_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
-            ssh_key_file.write(ssh_key)
-            ssh_key_file.close()
-            ssh_key_filename = ssh_key_file.name
-
         bridge = self.config["bridge"]
-        stage_dir = self.config['stage_dir']
-        run_dir = self.config['run_dir']
+        self.ssh_config.generate()
+        tunnel = None
+        local_livy_port = None
 
-        # create run dir
-        run_id = str(uuid.uuid4())
-        ssh_cmds = self.get_ssh_cmds(ssh_key_filename)
-        ssh_cmds.extend([
-            "hdfs", "dfs", "-mkdir", "-p",
-            os.path.join(run_dir, run_id)
-        ])
-        subprocess.check_call(ssh_cmds)
+        # by default, livy server is the same as the bridge
+        # and ssh tunnel is used for livy access
+        livy_cfg = self.config.get('livy', {
+            'host': '127.0.0.1',
+            'port': 8998,
+            'via_tunnel': True,
+            'protocol': 'http',
+            'username': None,
+            'password': None,
+        })
+        livy_cfg_host = livy_cfg.get('host', '127.0.0.1')
+        livy_cfg_port = livy_cfg.get('port', 8998)
+        livy_cfg_via_tunnel = livy_cfg.get('via_tunnel', True)
+        livy_cfg_protocol = livy_cfg.get('protocol', 'http')
+        livy_cfg_username = livy_cfg.get('username', None)
+        livy_cfg_password = livy_cfg.get('password', None)
+        try:
+            if livy_cfg_via_tunnel:
+                local_livy_port, tunnel = self.ssh_config.tunnel(bridge, livy_cfg_host, livy_cfg_port)
+            o = urlparse(deployment_location)
+            if o.scheme not in ('hdfs', 's3'):
+                raise SparkETLLaunchFailure("deployment_location must be in hdfs or s3")
 
-        client_channel = ClientChannel(
-            bridge, stage_dir, run_dir, run_id,
-            ssh_key_filename=ssh_key_filename, ssh_username=self.config.get('ssh_username')
-        )
-        client_channel.write_json("input.json", args)
 
+            stage_dir = self.config['stage_dir']
+            run_dir = self.config['run_dir']
 
-        headers = {
-            "Content-Type": "application/json",
-            "X-Requested-By": "root",
-            'proxyUser': 'root'
-        }
+            # create run dir
+            run_id = str(uuid.uuid4())
+            self.ssh_config.execute(bridge, [
+                "hdfs", "dfs", "-mkdir", "-p",
+                os.path.join(run_dir, run_id)
+            ])
 
-        config = {
-            'file': os.path.join(deployment_location, "job_loader.py"),
-            'pyFiles': [ os.path.join(deployment_location, "app.zip") ],
-            'args': [
-                '--run-id', run_id,
-                '--run-dir', os.path.join(run_dir, run_id),
-                '--lib-zip', os.path.join(deployment_location, "lib.zip")
-            ]
-        }
-
-        config.update(options)
-        config.pop("display_name", None)  # livy job submitter does not support display_name
-
-        service_url = self.config['service_url']
-        username = self.config.get('username')
-        password = self.config.get('password')
-
-        # print(json.dumps(config))
-        if username is None:
-            r = requests.post(
-                os.path.join(service_url, "batches"),
-                data=json.dumps(config),
-                headers=headers,
-                verify=False
+            client_channel = ClientChannel(
+                bridge, stage_dir, run_dir, run_id,
+                ssh_config = self.ssh_config
             )
-        else:
-            r = requests.post(
-                os.path.join(service_url, "batches"),
-                data=json.dumps(config),
-                headers=headers,
-                auth=HTTPBasicAuth(username, password),
-                verify=False
-            )
-        if r.status_code not in [200, 201]:
-            msg = "Failed to submit the job, status: {}, error message: \"{}\"".format(
-                r.status_code,
-                r.content
-            )
-            raise SparkETLLaunchFailure(msg)
+            client_channel.write_json("input.json", args)
 
-        print(f'job submitted, run_id = {run_id}')
-        ret = json.loads(r.content.decode("utf8"))
-        if on_job_submitted is not None:
-            on_job_submitted(run_id, vendor_info=ret)
-        job_id = ret['id']
-        print('job id: {}'.format(job_id))
-        print(ret)
-        print('logs:')
-        for log in ret.get('log', []):
-            print(log)
 
-        def get_job_status():
-            r = requests.get(
-                os.path.join(service_url, "batches", str(job_id)),
-                headers=headers,
-                auth=HTTPBasicAuth(username, password),
-                verify=False
-            )
-            if r.status_code != 200:
-                msg = "Failed to get job status, status: {}, error message: \"{}\"".format(
+            headers = {
+                "Content-Type": "application/json",
+                "X-Requested-By": "root",
+                'proxyUser': 'root'
+            }
+
+            config = {
+                'file': os.path.join(deployment_location, "job_loader.py"),
+                'pyFiles': [ os.path.join(deployment_location, "app.zip") ],
+                'args': [
+                    '--run-id', run_id,
+                    '--run-dir', os.path.join(run_dir, run_id),
+                    '--lib-zip', os.path.join(deployment_location, "lib.zip")
+                ]
+            }
+
+            config.update(options)
+            config.pop("display_name", None)  # livy job submitter does not support display_name
+
+            if livy_cfg_via_tunnel:
+                livy_service_url = f"{livy_cfg_protocol}://127.0.0.1:{local_livy_port}/"
+            else:
+                livy_service_url = f"{livy_cfg_protocol}://{livy_cfg_host}:{livy_cfg_port}/"
+
+            print(f"Livy: {livy_service_url}")
+            # print(json.dumps(config))
+            if livy_cfg_username is None:
+                r = requests.post(
+                    os.path.join(livy_service_url, "batches"),
+                    data=json.dumps(config),
+                    headers=headers,
+                    verify=False
+                )
+            else:
+                r = requests.post(
+                    os.path.join(livy_service_url, "batches"),
+                    data=json.dumps(config),
+                    headers=headers,
+                    auth=HTTPBasicAuth(livy_cfg_username, livy_cfg_password),
+                    verify=False
+                )
+            if r.status_code not in [200, 201]:
+                msg = "Failed to submit the job, status: {}, error message: \"{}\"".format(
                     r.status_code,
                     r.content
                 )
-                # this is considered unhandled
-                raise Exception(msg)
+                raise SparkETLLaunchFailure(msg)
+
+            print(f'job submitted, run_id = {run_id}')
             ret = json.loads(r.content.decode("utf8"))
-            return ret
+            if on_job_submitted is not None:
+                on_job_submitted(run_id, vendor_info=ret)
+            job_id = ret['id']
+            print('job id: {}'.format(job_id))
+            print(ret)
+            print('logs:')
+            for log in ret.get('log', []):
+                print(log)
 
-        cli_entered = False
-        # pull the job status
-        while True:
-            ret = get_job_status()
-            job_state = ret['state']
-            appId = ret.get('appId')
-            print('job_state: {}, applicationId: {}'.format(
-                job_state, appId
+            def get_job_status():
+                if livy_cfg_username is None:
+                    r = requests.get(
+                        os.path.join(livy_service_url, "batches", str(job_id)),
+                        headers=headers,
+                        verify=False
+                    )
+                else:
+                    r = requests.get(
+                        os.path.join(livy_service_url, "batches", str(job_id)),
+                        headers=headers,
+                        auth=HTTPBasicAuth(livy_cfg_username, livy_cfg_password),
+                        verify=False
+                    )
+                if r.status_code != 200:
+                    msg = "Failed to get job status, status: {}, error message: \"{}\"".format(
+                        r.status_code,
+                        r.content
+                    )
+                    # this is considered unhandled
+                    raise Exception(msg)
+                ret = json.loads(r.content.decode("utf8"))
+                return ret
 
-            ))
-            if job_state in ['success', 'dead', 'killed']:
-                # cmd = f"yarn logs -applicationId {appId}"
-                # host = self.config['bridge']
-                # subprocess.call(["ssh", "-q", "-t", host, cmd], shell=False)
-                print(f"job_state={job_state}")
-                if job_state == 'success':
-                    return client_channel.read_json("result.json")
-                raise SparkETLLaunchFailure("Job failed")
-            time.sleep(5)
+            cli_entered = False
+            # pull the job status
+            while True:
+                ret = get_job_status()
+                job_state = ret['state']
+                appId = ret.get('appId')
+                print('job_state: {}, applicationId: {}'.format(
+                    job_state, appId
 
-            # we enter the cli mode upon first reached the running status
-            if cli_mode and not cli_entered and job_state == 'running':
-                cli_entered = True
-                cli_handler = CLIHandler(
-                    client_channel,
-                    lambda : get_job_status()['state'] not in ('success', 'dead', 'killed'),
-                    handlers
-                )
-                cli_handler.loop()
+                ))
+                if job_state in ['success', 'dead', 'killed']:
+                    # cmd = f"yarn logs -applicationId {appId}"
+                    # host = self.config['bridge']
+                    # subprocess.call(["ssh", "-q", "-t", host, cmd], shell=False)
+                    print(f"job_state={job_state}")
+                    if job_state == 'success':
+                        return client_channel.read_json("result.json")
+                    raise SparkETLLaunchFailure("Job failed")
+                time.sleep(5)
+
+                # we enter the cli mode upon first reached the running status
+                if cli_mode and not cli_entered and job_state == 'running':
+                    cli_entered = True
+                    cli_handler = CLIHandler(
+                        client_channel,
+                        lambda : get_job_status()['state'] not in ('success', 'dead', 'killed'),
+                        handlers
+                    )
+                    cli_handler.loop()
+        finally:
+            if tunnel is not None:
+                tunnel.kill()
+            self.ssh_config.destroy()
 
 
