@@ -47,17 +47,39 @@ def configure_hdfs_deployer(args):
     return config
 
 def configure_s3_deployer(args):
-    if args.aws_access_key_id is None:
-        raise Exception("missing --aws-access-key-id")
-    if args.aws_secret_access_key is None:
-        raise Exception("missing --aws-secret-access-key")
+    if args.aws_account is None:
+        if args.aws_access_key_id is None:
+            raise Exception("Without --aws-count, you must provide --aws-access-key-id")
+        else:
+            aws_access_key_id = args.aws_access_key_id
+
+        if args.aws_secret_access_key is None:
+            raise Exception("Without --aws-count, you must provide --aws-secret-access-key")
+        else:
+            aws_secret_access_key = args.aws_secret_access_key
+    else:
+        with open(args.aws_account, "rt") as f:
+            aws_account = json.load(f)
+            aws_access_key_id       = aws_account['aws_access_key_id']
+            aws_secret_access_key   = aws_account['aws_secret_access_key']
 
     config = {
         "class": "spark_etl.deployers.s3_deployer.S3Deployer",
         "args": [
             {
-                "aws_access_key_id": args.aws_access_key_id,
-                "aws_secret_access_key": args.aws_secret_access_key
+                "aws_access_key_id"     : aws_access_key_id,
+                "aws_secret_access_key" : aws_secret_access_key
+            }
+        ]
+    }
+    return config
+
+
+def configure_local_deployer(args):
+    config = {
+        "class": "spark_etl.vendors.local.local_deployer.LocalDeployer",
+        "args": [
+            {
             }
         ]
     }
@@ -94,13 +116,28 @@ def configure_livy_job_submitter(args):
     }
     return config
 
+def configure_pyspark_job_sumbitter(args):
+    config = {
+        "class": "spark_etl.vendors.local.pyspark_job_submitter.PySparkJobSubmitter",
+        "args": [{
+            "run_dir": args.run_dir,
+            "enable_aws_s3": args.enable_aws_s3
+        }],
+    }
+    config["args"][0]["enable_aws_s3"] = not not args.enable_aws_s3
+    if config["args"][0]["enable_aws_s3"]:
+        if args.aws_account is not None:
+            config["args"][0]["aws_account"] = args.aws_account
+    return config
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--deployer", required=True, choices=[
-        'HDFSDeployer', 'S3Deployer'
+        'HDFSDeployer', 'S3Deployer', 'LocalDeployer'
     ])
     parser.add_argument("--submitter", required=True, choices=[
-        'LivyJobSubmitter'
+        'LivyJobSubmitter', 'PySparkJobSubmitter'
     ])
     parser.add_argument("--bridge",     help="Bridge host")
     parser.add_argument("--stage-dir",  help="Stage directory")
@@ -133,8 +170,16 @@ def main():
         action="store_true",
     )
 
+    parser.add_argument("--aws-account",            help="AWS account json file")
     parser.add_argument("--aws-access-key-id",      help="AWS access key id")
     parser.add_argument("--aws-secret-access-key",  help="AWS secret access key")
+
+    # allow pyspark to access aws-s3 buckets
+    parser.add_argument(
+        "--enable-aws-s3",
+        help="Allow pyspark to access aws s3 buckets",
+        action="store_true",
+    )
 
     args = parser.parse_args()
 
@@ -143,9 +188,13 @@ def main():
         deployer = configure_hdfs_deployer(args)
     elif args.deployer == "S3Deployer":
         deployer = configure_s3_deployer(args)
+    elif args.deployer == "LocalDeployer":
+        deployer = configure_local_deployer(args)
 
     if args.submitter == "LivyJobSubmitter":
         submitter = configure_livy_job_submitter(args)
+    elif args.submitter == "PySparkJobSubmitter":
+        submitter = configure_pyspark_job_sumbitter(args)
 
     config = {
         "deployer": deployer,

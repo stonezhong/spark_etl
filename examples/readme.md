@@ -39,12 +39,10 @@
 # Example 2: using spark cluster in AWS EMR
 ```bash
 # Test at AWS, Generate config
-# aws-access-key-id and aws-secret-access-key has been masked
 ./gen_cfg.py \
     --deployer S3Deployer \
     --submitter LivyJobSubmitter \
-    --aws-access-key-id XXX \
-    --aws-secret-access-key yyy \
+    --aws-account ~/.aws/account.json \
     --livy-host 127.0.0.1 \
     --livy-via-tunnel \
     --bridge emr \
@@ -66,5 +64,31 @@
     -c config.json \
     --deploy-dir s3://stonezhong-lakehouse/apps/myapp \
     --version 1.0.0.1
+```
 
+# Example 3: using local pyspark
+```bash
+# application launched locally
+# run-dir also is local
+# can access S3 bucket for loading data
+./gen_cfg.py \
+    --deployer LocalDeployer \
+    --submitter PySparkJobSubmitter \
+    --aws-account ~/.aws/account.json \
+    --enable-aws-s3 \
+    --run-dir /mnt/DATA_DISK/test-datalake/runs > config.json
+
+# deploy the job
+./etl.py \
+    -a deploy \
+    -c config.json \
+    --build-dir .builds/ \
+    --deploy-dir /mnt/DATA_DISK/test-datalake/apps/myapp
+
+# run the job
+./etl.py \
+    -a run \
+    -c config.json \
+    --deploy-dir /mnt/DATA_DISK/test-datalake/apps/myapp \
+    --version 1.0.0.1
 ```

@@ -74,8 +74,27 @@ def _bootstrap():
     parser.add_argument(
         "--app-dir", type=str, required=True, help="Application Directory",
     )
+    parser.add_argument(
+        "--enable-aws-s3",
+        help="Allow pyspark to access aws s3 buckets",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--aws-account", type=str, required=False, help="AWS Account json file",
+    )
     args = parser.parse_args()
     spark = SparkSession.builder.appName(f"RunJob-{args.run_id}").getOrCreate()
+
+    if args.enable_aws_s3:
+        hadoop_conf = spark._jsc.hadoopConfiguration()
+        hadoop_conf.set("fs.s3.impl", "org.apache.hadoop.fs.s3native.NativeS3FileSystem")
+
+        if args.aws_account is not None:
+            with open(args.aws_account, "rt") as f:
+                aws_account_content = json.load(f)
+            hadoop_conf.set("fs.s3.awsAccessKeyId", aws_account_content['aws_access_key_id'])
+            hadoop_conf.set("fs.s3.awsSecretAccessKey", aws_account_content['aws_secret_access_key'])
+
 
     sc = spark.sparkContext
     sc.addPyFile(os.path.join(args.app_dir, "app.zip"))
