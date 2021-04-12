@@ -74,6 +74,24 @@ def configure_s3_deployer(args):
     }
     return config
 
+def configure_oci_dataflow_deployer(args):
+    config = {
+        "class": "spark_etl.vendors.oracle.DataflowDeployer",
+        "args": [
+            {
+                "region"                : args.oci_region,
+                "dataflow": {
+                    "compartment_id"    : args.oci_compartment_id,
+                    "driver_shape"      : args.oci_driver_shape or "VM.Standard2.1",
+                    "executor_shape"    : args.oci_executor_shape or "VM.Standard2.1",
+                    "num_executors"     : args.oci_num_executors or 1
+                }
+            }
+        ]
+    }
+    return config
+
+
 
 def configure_local_deployer(args):
     config = {
@@ -130,14 +148,23 @@ def configure_pyspark_job_sumbitter(args):
             config["args"][0]["aws_account"] = args.aws_account
     return config
 
+def configure_oci_dataflow_job_sumbitter(args):
+    config = {
+        "class": "spark_etl.vendors.oracle.DataflowJobSubmitter",
+        "args": [{
+            "region" : args.oci_region,
+            "run_dir": args.run_dir,
+        }],
+    }
+    return config
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--deployer", required=True, choices=[
-        'HDFSDeployer', 'S3Deployer', 'LocalDeployer'
+        'HDFSDeployer', 'S3Deployer', 'LocalDeployer', 'DataflowDeployer',
     ])
     parser.add_argument("--submitter", required=True, choices=[
-        'LivyJobSubmitter', 'PySparkJobSubmitter'
+        'LivyJobSubmitter', 'PySparkJobSubmitter', 'DataflowJobSubmitter',
     ])
     parser.add_argument("--bridge",     help="Bridge host")
     parser.add_argument("--stage-dir",  help="Stage directory")
@@ -181,6 +208,12 @@ def main():
         action="store_true",
     )
 
+    parser.add_argument("--oci-region",                    help="OCI Region for the app")
+    parser.add_argument("--oci-compartment-id",            help="OCI Compartment ID")
+    parser.add_argument("--oci-driver-shape",              help="OCI Driver Shape")
+    parser.add_argument("--oci-executor-shape",            help="OCI Executor Shape")
+    parser.add_argument("--oci-num-executors", type=int,   help="OCI Number of Executors")
+
     args = parser.parse_args()
 
     # parse deployer
@@ -190,22 +223,35 @@ def main():
         deployer = configure_s3_deployer(args)
     elif args.deployer == "LocalDeployer":
         deployer = configure_local_deployer(args)
+    elif args.deployer == "DataflowDeployer":
+        deployer = configure_oci_dataflow_deployer(args)
 
     if args.submitter == "LivyJobSubmitter":
         submitter = configure_livy_job_submitter(args)
     elif args.submitter == "PySparkJobSubmitter":
         submitter = configure_pyspark_job_sumbitter(args)
+    elif args.submitter == "DataflowJobSubmitter":
+        submitter = configure_oci_dataflow_job_sumbitter(args)
+
+    job_run_options_livy = {
+        "conf": {
+            "spark.yarn.appMasterEnv.PYSPARK_PYTHON": "python3",
+            "spark.executorEnv.PYSPARK_PYTHON": "python3"
+        }
+    }
+    job_run_options_oci = {
+        "display_name": "test"
+    }
 
     config = {
         "deployer": deployer,
         "job_submitter": submitter,
-        "job_run_options": {
-            "conf": {
-                "spark.yarn.appMasterEnv.PYSPARK_PYTHON": "python3",
-                "spark.executorEnv.PYSPARK_PYTHON": "python3"
-            }
-        }
+        "job_run_options": {}
     }
+    if args.submitter in ("LivyJobSubmitter", "PySparkJobSubmitter"):
+        config['job_run_options'] = job_run_options_livy
+    if args.submitter in ("DataflowJobSubmitter"):
+        config['job_run_options'] = job_run_options_oci
 
     print(json.dumps(config, indent=2))
 

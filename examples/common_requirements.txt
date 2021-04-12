@@ -1,7 +1,8 @@
-spark-etl==0.0.82
+spark-etl==0.0.92
 
 # required packages if you are using Oracle OCI
-# oci-core==0.0.13
+# oci-core==0.0.15
+# oci==2.35.1
 
 # required packages if you are using AWS EMR
 # boto3==1.17.11
