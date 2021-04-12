@@ -18,13 +18,13 @@ from spark_etl.utils import CLIHandler, handle_server_ask
 from spark_etl.core import ClientChannelInterface
 
 class ClientChannel(ClientChannelInterface):
-    def __init__(self, region, oci_config, run_base_dir, run_id):
+    def __init__(self, region, oci_config, run_dir, run_id):
         self.region = region
         self.oci_config = oci_config
-        self.run_base_dir = run_base_dir
+        self.run_dir = run_dir
         self.run_id = run_id
 
-        o = urlparse(run_base_dir)
+        o = urlparse(run_dir)
         self.namespace = o.netloc.split('@')[1]
         self.bucket = o.netloc.split('@')[0]
         self.root_path = o.path[1:] # remove the leading "/"
@@ -60,11 +60,13 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         super(DataflowJobSubmitter, self).__init__(config)
         # config fields
         # region, e.g. IAD
-        # run_base_dir, uri, point to the run directory.
-        run_base_dir = self.config['run_base_dir']
-        o = urlparse(run_base_dir)
+        # run_dir, uri, point to the run directory.
+        run_dir = self.config.get('run_dir') or self.config.get('run_base_dir')
+        if run_dir is None:
+            raise Exception("run_dir is not specified")
+        o = urlparse(run_dir)
         if o.scheme != 'oci':
-            raise SparkETLLaunchFailure("run_base_dir must be in OCI")
+            raise SparkETLLaunchFailure("run_dir must be in OCI")
 
 
     @property
@@ -85,7 +87,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         if o.scheme != 'oci':
             raise SparkETLLaunchFailure("deployment_location must be in OCI")
 
-        run_base_dir = self.config['run_base_dir']
+        run_dir = self.config.get('run_dir') or self.config.get('run_base_dir')
         run_id = str(uuid.uuid4())
 
         namespace = o.netloc.split('@')[1]
@@ -100,12 +102,12 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         client_channel = ClientChannel(
             self.region,
             self.config.get("oci_config"),
-            run_base_dir,
+            run_dir,
             run_id
         )
         client_channel.write_json("args.json", args)
 
-        o = urlparse(self.config['run_base_dir'])
+        o = urlparse(run_dir)
         namespace = o.netloc.split('@')[1]
         bucket = o.netloc.split('@')[0]
         root_path = o.path[1:] # remove the leading "/"
@@ -119,7 +121,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
             'arguments': [
                 "--deployment-location", deployment_location,
                 "--run-id", run_id,
-                "--run-dir", os.path.join(run_base_dir, run_id),
+                "--run-dir", os.path.join(run_dir, run_id),
                 "--app-region", self.region,
             ],
         }
