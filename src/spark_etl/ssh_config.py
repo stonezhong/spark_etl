@@ -4,6 +4,10 @@ import shutil
 import subprocess
 import socket
 from contextlib import closing
+import random
+import time
+
+random.seed()
 
 _DEBUG_SSH = False
 
@@ -103,24 +107,29 @@ class SSHConfig:
             "-q",
         ]
 
-    def execute(self, host, cmds, error_ok=False):
+    def execute(self, host, cmds, error_ok=False, retry_count=5, wait_interval=5):
+        for i in range(0, retry_count):
+            ret = self._execute(host, cmds)
+            if ret == 255:
+                # this means the command is not even executed on remote host
+                time.sleep(random.randrange(wait_interval)+1)
+                continue
+            if ret == 0 or error_ok:
+                return ret
+            raise Exception(f"{' '.join(cmds)} failed on host {host} with exit code {ret}")
+        raise Exception(f"{' '.join(cmds)} failed on host {host} with exit code {ret}")
+
+    def _execute(self, host, cmds):
         ssh_cmds = self.get_ssh_cmds()
         ssh_cmds.append(host)
         ssh_cmds.extend(cmds)
         if _DEBUG_SSH:
             print(f"running {' '.join(ssh_cmds)}")
-        if error_ok:
-            ret = subprocess.call(
-                ssh_cmds,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                shell=False
-            )
-        else:
-            ret = subprocess.check_call(
-                ssh_cmds,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                shell=False
-            )
+        ret = subprocess.call(
+            ssh_cmds,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            shell=False
+        )
         return ret
 
 
