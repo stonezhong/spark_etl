@@ -204,7 +204,7 @@ class CLIHandler:
                 if line_mode == "off":
                     cli_lines.append(command)
                 else:
-                    self.client_channel_write_json(
+                    self.client_channel.write_json(
                         CLI_REQUEST_NAME,
                         {
                             "type": "@@" + line_mode,
