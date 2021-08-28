@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 import json
 from urllib.parse import urlparse
 import time
@@ -125,7 +128,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
                 "--app-region", self.region,
             ],
         }
-        for key in ['num_executors', 'driver_shape', 'executor_shape']:
+        for key in ['num_executors', 'driver_shape', 'executor_shape', 'configuration']:
             if key in options:
                 crd_argv[key] = options[key]
 
@@ -134,7 +137,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         check_response(r, lambda : SparkETLLaunchFailure("dataflow failed to run the application"))
         run = r.data
         oci_run_id = run.id
-        print(f"Job launched, run_id = {run_id}, oci_run_id = {run.id}")
+        logger.info(f"Job launched, run_id = {run_id}, oci_run_id = {run.id}")
         if on_job_submitted is not None:
             on_job_submitted(run_id, vendor_info={'oci_run_id': run.id})
 
@@ -144,7 +147,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
             r = df_client.get_run(run_id=run.id)
             check_response(r, lambda : SparkETLGetStatusFailure("dataflow failed to get run status"))
             run = r.data
-            print(f"Status: {run.lifecycle_state}")
+            logger.info(f"Status: {run.lifecycle_state}")
             if run.lifecycle_state in ('FAILED', 'SUCCEEDED', 'CANCELED'):
                 break
             handle_server_ask(client_channel, handlers)
