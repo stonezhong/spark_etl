@@ -36,6 +36,23 @@ class ClientChannel(ClientChannelInterface):
 class PySparkJobSubmitter(AbstractJobSubmitter):
     def __init__(self, config):
         super(PySparkJobSubmitter, self).__init__(config)
+        ####################################################################################
+        # here is a sample config
+        # {
+        #     "run_dir": "/home/stonezhong/spark-etl-lab/src/local-lake/runs",
+        #     "enable_aws_s3": true,
+        #     "aws_account": "~/.aws/account.json",
+        #     "aws_s3_buffer_dir": "/home/stonezhong/spark-etl-lab/src/local-lake/s3-buffer"
+        # }
+        # enable_aws_s3: set to True if you want to access AWS S3 buckets
+        # aws_account: point to a json filename, the json file looks like below
+        # {
+        #     "aws_access_key_id": "***",
+        #     "aws_secret_access_key": "***"
+        # }
+        # aws_s3_buffer_dir: a temp dir for s3 buffered data
+        ####################################################################################
+
 
 
     def run(self, deployment_location, options={}, args={}, handlers=[], on_job_submitted=None, cli_mode=False):
@@ -56,7 +73,8 @@ class PySparkJobSubmitter(AbstractJobSubmitter):
         run_args = [
             "spark-submit",
         ]
-        if self.config['enable_aws_s3']:
+        enable_aws_s3 = self.config.get('enable_aws_s3', False)
+        if enable_aws_s3:
             run_args.extend([
                 "--packages",
                 "org.apache.hadoop:hadoop-aws:2.7.3"
@@ -68,13 +86,19 @@ class PySparkJobSubmitter(AbstractJobSubmitter):
             "--run-dir", run_dir,
             "--app-dir", app_dir
         ])
-        if self.config['enable_aws_s3']:
+
+        if enable_aws_s3:
             run_args.append("--enable-aws-s3")
-        if self.config['aws_account']:
-            run_args.extend([
-                '--aws-account',
-                self.config['aws_account']
-            ])
+            aws_s3_buffer_dir = self.config.get('aws_s3_buffer_dir')
+            if aws_s3_buffer_dir is not None:
+                run_args.extend(['--aws-s3-buffer-dir', aws_s3_buffer_dir])
+
+
+        aws_account = self.config.get('aws_account')
+        if aws_account is not None:
+            if aws_account.startswith('~'):
+                aws_account = os.path.expanduser(aws_account)
+            run_args.extend(['--aws-account', aws_account])
 
         p = subprocess.Popen(run_args)
         exit_code = None

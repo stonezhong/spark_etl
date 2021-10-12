@@ -82,12 +82,17 @@ def _bootstrap():
     parser.add_argument(
         "--aws-account", type=str, required=False, help="AWS Account json file",
     )
+    parser.add_argument(
+        "--aws-s3-buffer-dir", type=str, required=False, help="AWS S3 buffer dir",
+    )
     args = parser.parse_args()
     spark = SparkSession.builder.appName(f"RunJob-{args.run_id}").getOrCreate()
 
     if args.enable_aws_s3:
         hadoop_conf = spark._jsc.hadoopConfiguration()
         hadoop_conf.set("fs.s3.impl", "org.apache.hadoop.fs.s3native.NativeS3FileSystem")
+        if args.aws_s3_buffer_dir is not None:
+            hadoop_conf.set("fs.s3.buffer.dir", args.aws_s3_buffer_dir)
 
         if args.aws_account is not None:
             with open(args.aws_account, "rt") as f:
