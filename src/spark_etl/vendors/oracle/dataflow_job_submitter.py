@@ -11,7 +11,7 @@ from termcolor import colored, cprint
 import readline
 
 import oci
-from oci_core import get_os_client, get_df_client, os_upload, os_upload_json, os_download, os_download_json, os_get_endpoint, \
+from oci_core import get_os_client, get_df_client, os_upload, os_upload_json, os_download, os_download_json, \
     os_has_object, os_delete_object
 
 from spark_etl.job_submitters import AbstractJobSubmitter
