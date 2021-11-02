@@ -61,6 +61,7 @@ class DataflowDeployer(AbstractDeployer):
         #   driver_shape
         #   executor_shape
         #   num_executors
+        #   spark_version
 
     @property
     def region(self):
@@ -89,7 +90,7 @@ class DataflowDeployer(AbstractDeployer):
             driver_shape=dataflow['driver_shape'],
             executor_shape=dataflow['executor_shape'],
             num_executors=dataflow['num_executors'],
-            spark_version="2.4.4",
+            spark_version=dataflow.get("spark_version", "2.4.4"),
             file_uri=f"{destination_location}/{manifest['version']}/job_loader.py",
             language="PYTHON",
             archive_uri=dataflow.get("archive_uri")
