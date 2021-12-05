@@ -1,0 +1,40 @@
+{
+    "deployer": {
+        "class": "spark_etl.deployers.s3_deployer.S3Deployer",
+        "kwargs": {
+            "config": {
+                "aws_account": "~/.aws/account.json"
+            }
+        },
+        "args": []
+    },
+    "job_submitter": {
+        "class": "spark_etl.job_submitters.livy_job_submitter.LivyJobSubmitter",
+        "kwargs": {
+            "config": {
+                "livy": {
+                    "host": "localhost",
+                    "port": 8998,
+                    "protocol": "http",
+                    "via_tunnel": true
+                },
+                "bridge": "emr_bridge",
+                "stage_dir": "/home/hadoop/.stage",
+                "run_dir": "s3://spark-etl-demo/runs/",
+                "ssh_config": {
+                    "config": "{{artifacts.ssh_config}}",
+                    "keys": {
+                        "emr": "{{artifacts.ssh_keys.emr}}"
+                    }
+                }
+            }
+        }
+    },
+    "deploy_base": "s3://spark-etl-demo/apps/",
+    "job_run_options": {
+        "conf": {
+            "spark.yarn.appMasterEnv.PYSPARK_PYTHON": "python3",
+            "spark.executorEnv.PYSPARK_PYTHON": "python3"
+        }
+    }
+}
