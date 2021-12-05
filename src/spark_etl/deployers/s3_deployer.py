@@ -18,8 +18,8 @@ class S3Deployer(AbstractDeployer):
 
     def deploy(self, build_dir, deployment_location):
         o = urlparse(deployment_location)
-        if o.scheme != 's3':
-            raise SparkETLDeploymentFailure("deployment_location must be in s3")
+        if o.scheme not in ('s3', 's3a'):
+            raise SparkETLDeploymentFailure("deployment_location must be in s3 or s3a")
 
         build = Build(build_dir)
 

@@ -1,0 +1,4 @@
+Host emr_bridge
+    HostName 3.94.79.12
+    User hadoop
+    IdentityFile emr

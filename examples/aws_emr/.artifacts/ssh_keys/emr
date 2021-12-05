@@ -1,0 +1,5 @@
+-----BEGIN RSA PRIVATE KEY-----
+***
+Masked on purpose
+cp ~/DATA_DISK/ssh/keys/aws/for-emr.pem .artifacts/ssh_keys/emr
+-----END RSA PRIVATE KEY-----
