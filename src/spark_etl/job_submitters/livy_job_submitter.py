@@ -158,8 +158,8 @@ class LivyJobSubmitter(AbstractJobSubmitter):
             if livy_cfg_via_tunnel:
                 local_livy_port, tunnel = self.ssh_config.tunnel(bridge, livy_cfg_host, livy_cfg_port)
             o = urlparse(deployment_location)
-            if o.scheme not in ('hdfs', 's3'):
-                raise SparkETLLaunchFailure("deployment_location must be in hdfs or s3")
+            if o.scheme not in ('hdfs', 's3', 's3a'):
+                raise SparkETLLaunchFailure("deployment_location must be in hdfs, s3 or s3a")
 
 
             stage_dir = self.config['stage_dir']
@@ -204,7 +204,7 @@ class LivyJobSubmitter(AbstractJobSubmitter):
                 livy_service_url = f"{livy_cfg_protocol}://{livy_cfg_host}:{livy_cfg_port}/"
 
             print(f"Livy: {livy_service_url}")
-            # print(json.dumps(config))
+            print(json.dumps(config))
             if livy_cfg_username is None:
                 r = requests.post(
                     os.path.join(livy_service_url, "batches"),

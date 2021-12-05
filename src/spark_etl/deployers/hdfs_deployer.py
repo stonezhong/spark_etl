@@ -21,8 +21,8 @@ class HDFSDeployer(AbstractDeployer):
         self.ssh_config.generate()
         try:
             o = urlparse(deployment_location)
-            if o.scheme != 'hdfs':
-                raise SparkETLDeploymentFailure("deployment_location must be in hdfs")
+            if o.scheme not in ('hdfs', 's3', 's3a'):
+                raise SparkETLDeploymentFailure("deployment_location must be in hdfs, s3 or s3a")
 
             # let's copy files to the stage dir
             bridge_dir = os.path.join(self.config['stage_dir'], str(uuid.uuid4()))
