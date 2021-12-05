@@ -204,7 +204,7 @@ class LivyJobSubmitter(AbstractJobSubmitter):
                 livy_service_url = f"{livy_cfg_protocol}://{livy_cfg_host}:{livy_cfg_port}/"
 
             print(f"Livy: {livy_service_url}")
-            print(json.dumps(config))
+            # print(json.dumps(config))
             if livy_cfg_username is None:
                 r = requests.post(
                     os.path.join(livy_service_url, "batches"),
