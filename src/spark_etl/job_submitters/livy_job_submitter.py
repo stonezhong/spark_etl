@@ -158,8 +158,8 @@ class LivyJobSubmitter(AbstractJobSubmitter):
             if livy_cfg_via_tunnel:
                 local_livy_port, tunnel = self.ssh_config.tunnel(bridge, livy_cfg_host, livy_cfg_port)
             o = urlparse(deployment_location)
-            if o.scheme not in ('hdfs', 's3'):
-                raise SparkETLLaunchFailure("deployment_location must be in hdfs or s3")
+            if o.scheme not in ('hdfs', 's3', 's3a'):
+                raise SparkETLLaunchFailure("deployment_location must be in hdfs, s3 or s3a")
 
 
             stage_dir = self.config['stage_dir']

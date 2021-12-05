@@ -1,0 +1,47 @@
+{
+    "deployer": {
+        "class": "spark_etl.deployers.hdfs_deployer.HDFSDeployer",
+        "kwargs": {
+            "config": {
+                "bridge": "spnode1",
+                "stage_dir": "/root/.stage",
+                "ssh_config": {
+                    "config": "{{artifacts.ssh_config}}",
+                    "keys": {
+                        "home": "{{artifacts.ssh_keys.home}}"
+                    }
+                }
+            }
+        },
+        "args": []
+    },
+    "job_submitter": {
+        "class": "spark_etl.job_submitters.livy_job_submitter.LivyJobSubmitter",
+        "kwargs": {
+            "config": {
+                "livy": {
+                    "host": "spnode1",
+                    "port": 8998,
+                    "protocol": "http",
+                    "via_tunnel": true
+                },
+                "bridge": "spnode1",
+                "stage_dir": "/root/.stage",
+                "run_dir": "hdfs://spnode1:9000//etl/runs/",
+                "ssh_config": {
+                    "config": "{{artifacts.ssh_config}}",
+                    "keys": {
+                        "home": "{{artifacts.ssh_keys.home}}"
+                    }
+                }
+            }
+        }
+    },
+    "deploy_base": "hdfs://spnode1:9000//etl/apps/",
+    "job_run_options": {
+        "conf": {
+            "spark.yarn.appMasterEnv.PYSPARK_PYTHON": "python3",
+            "spark.executorEnv.PYSPARK_PYTHON": "python3"
+        }
+    }
+}
