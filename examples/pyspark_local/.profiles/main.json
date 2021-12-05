@@ -1,0 +1,18 @@
+{
+    "deployer": {
+        "class": "spark_etl.vendors.local.LocalDeployer",
+        "kwargs": {
+            "config": {}
+        },
+        "args": []
+    },
+    "job_submitter": {
+        "class": "spark_etl.vendors.local.PySparkJobSubmitter",
+        "kwargs": {
+            "config": {
+                "run_dir": "runs"
+            }
+        }
+    },
+    "deploy_base": ".deployments"
+}

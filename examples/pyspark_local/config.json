@@ -1,0 +1,5 @@
+{
+    "apps_dir": "apps",
+    "builds_dir": ".builds",
+    "profiles_dir": ".profiles"
+}

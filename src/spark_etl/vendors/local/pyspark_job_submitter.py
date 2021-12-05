@@ -75,6 +75,7 @@ class PySparkJobSubmitter(AbstractJobSubmitter):
         ]
         enable_aws_s3 = self.config.get('enable_aws_s3', False)
         if enable_aws_s3:
+            # spark will automatically download package
             run_args.extend([
                 "--packages",
                 "org.apache.hadoop:hadoop-aws:2.7.3"
@@ -91,13 +92,13 @@ class PySparkJobSubmitter(AbstractJobSubmitter):
             run_args.append("--enable-aws-s3")
             aws_s3_buffer_dir = self.config.get('aws_s3_buffer_dir')
             if aws_s3_buffer_dir is not None:
+                aws_s3_buffer_dir = os.path.expandvars(os.path.expanduser(aws_s3_buffer_dir))
                 run_args.extend(['--aws-s3-buffer-dir', aws_s3_buffer_dir])
 
 
         aws_account = self.config.get('aws_account')
         if aws_account is not None:
-            if aws_account.startswith('~'):
-                aws_account = os.path.expanduser(aws_account)
+            aws_account = os.path.expandvars(os.path.expanduser(aws_account))
             run_args.extend(['--aws-account', aws_account])
 
         p = subprocess.Popen(run_args)

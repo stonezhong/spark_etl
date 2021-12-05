@@ -123,6 +123,8 @@ class Profile:
 
 def load_artifacts(root_dir):
     ret = {}
+    if not os.path.isdir(root_dir):
+        return ret
     for filename in os.listdir(root_dir):
         full_filename = os.path.join(root_dir, filename)
         if os.path.isdir(full_filename):
