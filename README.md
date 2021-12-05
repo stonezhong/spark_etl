@@ -106,8 +106,9 @@ You can also run a down-scaled version of your data lake with pyspark in a lapto
 </table>
 
 # Demos
-* [For pyspark with local filesystem](examples/pyspark_local/readme.md)
-* [For pyspark with aws S3](examples/pyspark_s3/readme.md)
+* [Using pyspark with local filesystem](examples/pyspark_local/readme.md)
+* [Using pyspark with aws S3](examples/pyspark_s3/readme.md)
+* [Using spark cluster with livy and HDFS](examples/livy_hdfs1/readme.md)
 
 # Deploy and run application
 Please see the [Demos](https://github.com/stonezhong/spark_etl/wiki#demos)
