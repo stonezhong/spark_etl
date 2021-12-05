@@ -1,0 +1,21 @@
+{
+    "deployer": {
+        "class": "spark_etl.vendors.local.LocalDeployer",
+        "kwargs": {
+            "config": {}
+        },
+        "args": []
+    },
+    "job_submitter": {
+        "class": "spark_etl.vendors.local.PySparkJobSubmitter",
+        "kwargs": {
+            "config": {
+                "enable_aws_s3": true,
+                "aws_account": "~/.aws/account.json",
+                "run_dir": "runs",
+                "aws_s3_buffer_dir": ".s3-buffer"
+            }
+        }
+    },
+    "deploy_base": ".deployments"
+}

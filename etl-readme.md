@@ -12,7 +12,7 @@ configurations are stored in a json file, by default, filename is `config.json`,
 <th>example</th>
 </tr>
 <tr>
-<td>app_dir</td>
+<td>apps_dir</td>
 <td>Specify the directory that contains all the applications. If missing, using "apps"</td>
 <td>"apps"</td>
 </tr>

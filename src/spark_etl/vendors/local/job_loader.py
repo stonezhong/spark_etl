@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import random
+import errno
 
 from pyspark.sql import SparkSession
 from pyspark import SparkFiles
@@ -111,7 +112,6 @@ def _bootstrap():
 
     run_home = os.path.join(args.run_dir, args.run_id)
     print(f"run-home: {run_home}")
-    os.chdir(run_home)
 
     # setup lib path
     _install_libs(run_home)

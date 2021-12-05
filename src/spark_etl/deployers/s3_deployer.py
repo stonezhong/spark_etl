@@ -1,5 +1,6 @@
 import os
 from urllib.parse import urlparse
+import json
 
 from .abstract_deployer import AbstractDeployer
 from spark_etl import Build
@@ -24,7 +25,10 @@ class S3Deployer(AbstractDeployer):
 
         args = {}
         if 'aws_account' in self.config:
-            with open(self.config['aws_account'], "rt") as f:
+            with open(
+                os.path.expandvars(os.path.expanduser(self.config['aws_account'])),
+                "rt"
+            ) as f:
                 aws_account_content     = json.load(f)
                 args['aws_access_key_id']       = aws_account_content['aws_access_key_id']
                 args['aws_secret_access_key']   = aws_account_content['aws_secret_access_key']

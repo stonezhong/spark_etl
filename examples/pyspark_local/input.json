@@ -1,0 +1,8 @@
+{
+    "cmds": [
+        {"action": "create_trade"},
+        {"action": "save_trade", "location": ".data/trade.parquet"},
+        {"action": "load_trade", "location": ".data/trade.parquet"},
+        {"action": "cash_flow"}
+    ]
+}
