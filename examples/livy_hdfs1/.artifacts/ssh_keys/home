@@ -1,0 +1,5 @@
+-----BEGIN RSA PRIVATE KEY-----
+***
+Masked on purpose
+cp ~/DATA_DISK/ssh/keys/local/home .artifacts/ssh_keys/home
+-----END RSA PRIVATE KEY-----

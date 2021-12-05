@@ -1,0 +1,8 @@
+{
+    "cmds": [
+        {"action": "create_trade"},
+        {"action": "save_trade", "location": "hdfs://spnode1:9000//etl/data/trade.parquet"},
+        {"action": "load_trade", "location": "hdfs://spnode1:9000//etl/data/trade.parquet"},
+        {"action": "cash_flow"}
+    ]
+}
