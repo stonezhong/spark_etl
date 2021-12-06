@@ -1,51 +1,47 @@
-# Demo hightlights
+# In this demo, you will see
 * How to build data application
-* How to deploy data application
+* How to deploy data application on your dev machine using pyspark
 * How to run data application in pyspark
-    * The app create a data frame
-    * The app save data frame to local filesystem
-    * The app load data frame from local filesystem
-    * The app transforms data frame using SparkSQL
+    * The application create a data frame
+    * The application save data frame to local filesystem
+    * The application load data frame from local filesystem
+    * The application transforms data frame using SparkSQL
     
 # Before the experiment
-Please setup virtual environment first, see [readme.md](../readme.md).
-also make sure you have JRE 1.8 installed
+* Please setup virtual environment first, see [readme.md](../readme.md).
+* Make sure you have JRE installed. Here is an example on installing JRE on RedHat Linux.
 ```bash
 # On RHEL 7
 sudo yum install java-1.8.0-openjdk
 ```
-
-Then you need to install package pyspark
+* Install package `pyspark`
 ```bash
 python -m pip install pyspark
 ```
 
-Then you need to create a directory `.data`, so we can store some sample data in this directory
-```bash
-mkdir .data
-```
-
-
 # Build app
 ```bash
-etl -a build -c config.json -p demo01
+etl -a build -p demo01
 ```
-* This command build the application
-* The application name is `demo01` located at directory `apps/demo01`. 
-* Build result will be in `.builds/demo01`
+* It build the application `demo01`
+* It uses configuration file `config.json`
+* Since `apps_dir=apps` in configuration, it will locate application `demo01` at direcotry `apps/demo01`
+* Since `builds_dir=.builds` in configuration, build result will be in `.builds/demo01`
 
 
 # To deploy
 ```bash
-etl -a deploy -c config.json -p demo01 -f main
+etl -a deploy -p demo01 -f main
 ```
-* This command deploy the application `demo01`
-* The application `demo01` is deployed to directory `.deployments/demo01/1.0.0.0`
+* It deploy the application `demo01`
+* It uses profile `main`
+* Since `profiles_dir=.profiles` in configuration, it will load profile `main` from file `.profiles/main.json`
+* It will deploy to directory `.deployments/demo01/1.0.0.0`, since `deploy_base=.deployments` in profile `main`, and application version is `1.0.0.0` from it's manifest file.
 
 # To run
 ```bash
-etl -a run -c config.json -p demo01 -f main --run-args input.json
+etl -a run -p demo01 -f main --run-args input.json
 ```
-* This command run the application `demo01`, using profile `.profiles/main.json`
+* It run the application `demo01`, using profile `main`
 * It passes the content of `input.json` as parameter to the app
-* You can see files in `.data/trade.parquet` are created.
+* based on the cmds in `input.json`, it will save parquet to `.data/trade.parquet`.

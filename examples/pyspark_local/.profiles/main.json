@@ -2,9 +2,8 @@
     "deployer": {
         "class": "spark_etl.vendors.local.LocalDeployer",
         "kwargs": {
-            "config": {}
-        },
-        "args": []
+            "config": { }
+        }
     },
     "job_submitter": {
         "class": "spark_etl.vendors.local.PySparkJobSubmitter",
