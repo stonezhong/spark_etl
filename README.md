@@ -38,7 +38,7 @@ In your application's `main.py`, you shuold have a `main` function with the foll
 def main(spark, input_args, sysops={}):
     # your code here
 ```
-[Here](../examples/apps/demo01) is an application example.
+[Here](examples/apps/demo01) is an application example.
 
 
 ## Build your application
