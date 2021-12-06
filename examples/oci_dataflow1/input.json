@@ -1,0 +1,8 @@
+{
+    "cmds": [
+        {"action": "create_trade"},
+        {"action": "save_trade", "location": "oci://spark-etl-lab@idrnu3akjpv5/data/trade.parquet"},
+        {"action": "load_trade", "location": "oci://spark-etl-lab@idrnu3akjpv5/data/trade.parquet"},
+        {"action": "cash_flow"}
+    ]
+}

@@ -1,0 +1,2 @@
+spark-etl==0.0.106
+oci-core==0.0.58
