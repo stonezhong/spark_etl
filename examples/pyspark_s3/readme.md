@@ -1,21 +1,21 @@
-# Demo hightlights
+# In this demo, you will see
 * How to build data application
 * How to deploy data application
 * How to run data application in pyspark
-    * The app create a data frame
-    * The app save data frame to aws s3 buckets
-    * The app load data frame from aws s3 buckets
-    * The app transforms data frame using SparkSQL
+    * The application create a data frame
+    * The application save data frame to aws s3 buckets
+    * The application load data frame from aws s3 buckets
+    * The application transforms data frame using SparkSQL
 
 # Before the experiment
-Please setup virtual environment first, see [readme.md](../readme.md).
-also make sure you have JRE 1.8 installed
+* Please setup virtual environment first, see [readme.md](../readme.md).
+* Make sure you have JRE installed. Here is an example on installing JRE on RedHat Linux.
 ```bash
 # On RHEL 7
 sudo yum install java-1.8.0-openjdk
 ```
 
-Then you need to install package pyspark
+* Install package `pyspark`
 ```bash
 python -m pip install pyspark
 ```
@@ -32,7 +32,7 @@ Create a aws s3 bucket: assuming your bucket name is `spark-etl-demo`
 
 # Build app
 ```bash
-etl -a build -c config.json -p demo01
+etl -a build -p demo01
 ```
 * This command build the application
 * The application name is `demo01` located at directory `apps/demo01`. 
@@ -41,15 +41,18 @@ etl -a build -c config.json -p demo01
 
 # To deploy
 ```bash
-etl -a deploy -c config.json -p demo01 -f main
+etl -a deploy -p demo01 -f main
 ```
 * This command deploy the application `demo01`
 * The application `demo01` is deployed to s3 at `s3://spark-etl-demo/apps/demo01/1.0.0.0`
 
 # To run
 ```bash
-etl -a run -c config.json -p demo01 -f main --run-args input.json
+etl -a run -p demo01 -f main --run-args input.json
 ```
 * This command run the application `demo01`, using profile `.profiles/main.json`
 * It passes the content of `input.json` as parameter to the app
-* You can see files in your S3 bucket.
+* It creates a data frame
+* Then it saves the data frame to `s3://spark-etl-demo/data/trade.parquet`
+* Then it loads the data frame from `s3://spark-etl-demo/data/trade.parquet`
+* Then it run a SparkSQL on the data frame
