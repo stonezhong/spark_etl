@@ -101,7 +101,9 @@ class PySparkJobSubmitter(AbstractJobSubmitter):
             aws_account = os.path.expandvars(os.path.expanduser(aws_account))
             run_args.extend(['--aws-account', aws_account])
 
-        p = subprocess.Popen(run_args)
+        myenv = os.environ.copy()
+        myenv['SPARK_LOCAL_HOSTNAME'] = 'localhost'
+        p = subprocess.Popen(run_args, env=myenv)
         exit_code = None
         cli_entered = False
 

@@ -1,35 +1,61 @@
 * [Overview](#overview)
     * [Goal](#goal)
     * [Benefit](#benefit)
+    * [Application](#application)
+    * [Build your application](#build_your_application)
+    * [Deploy your application](#deploy_your_application)
+    * [Run your application](#run_your_application)
     * [Supported platforms](#supported_platforms)
 * [APIs](#apis)
-    * [Application](#application)
-        * [Application entry signature](#application-entry-signature)
     * [Job Deployer](#job-deployer)
     * [Job Submitter](#job-submitter)
-* [Tool: etl.py](#tool-etlpy)
-    * [Build an application](#build-an-application)
-    * [Deploy and run application](#deploy-and-run-application)
-
-See [https://stonezhong.github.io/spark_etl/](https://stonezhong.github.io/spark_etl/) for more informaion
 
 # Overview
 
 ## Goal
-There are many public clouds provide managed Apache Spark as service, such as databricks, AWS EMR, Oracle OCI DataFlow, see the table below for a complete list.
+There are many public clouds provide managed Apache Spark as service, such as databricks, AWS EMR, Oracle OCI DataFlow, see the table below for a detailed list.
 
-However, each platform has it's own way of launching Spark jobs, and the way to launch spark jobs between platforms are not compatible with each other.
+However, the way to deploy Spark application and launch Spark application are incompatible between different cloud Spark platforms.
 
-spark-etl is a python package, which simplifies the spark application management cross platforms, with 3 uniformed steps:
-* Build your spark application
-* Deploy your spark application
-* Run your spark application
-
+Now with `spark-etl`, you can deploy and launch your Spark application in a standard way.
 
 ## Benefit
-Your application using spark-etl is spark provider agnostic. For example, you can move your application from Azure HDInsight to AWS EMR without changing your application's code.
+Your application using `spark-etl` can be deployed and launched from different Spark providers without changing the source code. Please check out the demos in the tables below.
 
-You can also run a down-scaled version of your data lake with pyspark in a laptop, since pyspark is a supported spark platform, with this feature, you can validate your spark application with pyspark on your laptop, instead of run it in cloud, to save cost.
+## Application
+An application is a python program. It contains:
+* A `main.py` file which contain the application entry
+* A `manifest.json` file, which specify the metadata of the application.
+* A `requirements.txt` file, which specify the application dependency.
+
+### Application entry signature
+In your application's `main.py`, you shuold have a `main` function with the following signature:
+* `spark` is the spark session object
+* `input_args` a dict, is the argument user specified when running this application.
+* `sysops` is the system options passed, it is platform specific. Job submitter may inject platform specific object in `sysops` object.
+* Your `main` function's return value should be a JSON object, it will be returned from the job submitter to the caller.
+```
+def main(spark, input_args, sysops={}):
+    # your code here
+```
+[Here](../examples/app/demo01) is an application example.
+
+
+## Build your application
+`etl -a build -c <config-filename> -p <application-name>`
+
+For details, please checkout examples below.
+
+## Deploy your application
+`etl -a deploy -c <config-filename> -p <application-name> -f <profile-name>`
+
+For details, please checkout examples below.
+
+## Run your application
+`etl -a run -c <config-filename> -p <application-name> -f <profile-name> --run-args <input-filename>`
+
+For details, please checkout examples below.
+
 
 ## Supported platforms
 <table>
@@ -40,7 +66,11 @@ You can also run a down-scaled version of your data lake with pyspark in a lapto
                 width="120px"
             />
         </td>
-        <td>You setup your own Apache Spark Cluster.</td>
+        <td>You setup your own Apache Spark Cluster.
+
+* [Demo: Access Data on HDFS](examples/livy_hdfs1/readme.md)
+* [Demo: Access Data on AWS S3](examples/livy_hdfs2/readme.md)
+        </td>
     </tr>
     <tr>
         <td>
@@ -48,6 +78,8 @@ You can also run a down-scaled version of your data lake with pyspark in a lapto
         </td>
         <td>
             Use <a href="https://pypi.org/project/pyspark/">PySpark</a> package, fully compatible to other spark platform, allows you to test your pipeline in a single computer.
+* [Demo: Access Data on local filesystem](examples/pyspark_local/readme.md)
+* [Demo: Access Data on AWS S3](examples/pyspark_s3/readme.md)
         </td>
     </tr>
     <tr>
@@ -63,7 +95,9 @@ You can also run a down-scaled version of your data lake with pyspark in a lapto
                 width="120px"
             />
         </td>
-        <td>You host your spark cluster in <a href="https://aws.amazon.com/emr/">Amazon AWS EMR</a></td>
+        <td>You host your spark cluster in <a href="https://aws.amazon.com/emr/">Amazon AWS EMR</a>
+* [Demo: Access Data on AWS S3](examples/aws_emr/readme.md)
+        </td>
     </tr>
     <tr>
         <td>
@@ -105,41 +139,12 @@ You can also run a down-scaled version of your data lake with pyspark in a lapto
     </tr>
 </table>
 
-# Demos
-* [Using pyspark with local filesystem](examples/pyspark_local/readme.md)
-* [Using pyspark with aws S3](examples/pyspark_s3/readme.md)
-* [Using spark cluster with livy and HDFS](examples/livy_hdfs1/readme.md)
-* [Using spark cluster with livy and HDFS access AWS S3](examples/livy_hdfs2/readme.md)
-* [Using spark cluster in AWS EMR](examples/aws_emr/readme.md)
 
-# Deploy and run application
-Please see the [Demos](https://github.com/stonezhong/spark_etl/wiki#demos)
 
 
 # APIs
 [pydocs for APIs](https://stonezhong.github.io/spark_etl/pydocs/spark_etl.html)
 
-## Application
-An application is a pyspark application, so far we only support pyspark, Java and Scala support will be added latter. An application contains:
-* A `main.py` file which contain the application entry
-* A `manifest.json` file, which specify the metadata of the application.
-* A `requirements.txt` file, which specify the application dependency.
-
-[Application](src/spark_etl/application.py) class:
-* You can create an application via `Application(app_location)`
-* You can build an application via `app.build(destination_location)`
-
-### Application entry signature
-In your application's `main.py`, you shuold have a `main` function with the following signature:
-* `spark` is the spark session object
-* `input_args` a dict, is the argument user specified when running this job.
-* `sysops` is the system options passed, it is platform specific. Job submitter may inject platform specific object in `sysops` object.
-* Your `main` function's return value will be returned from the job submitter to the caller.
-```
-def main(spark, input_args, sysops={}):
-    # your code here
-```
-[Here](examples/myapp) is an example.
 
 ## Job Deployer
 For job deployers, please check the [wiki](https://github.com/stonezhong/spark_etl/wiki#job-deployer-classes) .
@@ -147,18 +152,5 @@ For job deployers, please check the [wiki](https://github.com/stonezhong/spark_e
 
 ## Job Submitter
 For job submitters, please check the [wiki](https://github.com/stonezhong/spark_etl/wiki#job-submitter-classes)
-
-
-# Tool: etl.py
-## Build an application
-To build an application, run
-```
-./etl.py -a build --app-dir <app-dir> --build-dir <build-dir>
-```
-* `<app_dir>` is the directory where your application is located.
-* `<build-dir>` is the directory where you want your build to be deployed
-    * Your build actually located at `<build-dir>/<version>`, where `<version>` is specified by application's manifest file
-
-* **Build is mostly platform independent. You can put platform related package in file `common_requirements.txt`**
 
 
