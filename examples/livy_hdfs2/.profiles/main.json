@@ -27,7 +27,8 @@
                 },
                 "bridge": "spnode1",
                 "stage_dir": "/root/.stage",
-                "run_dir": "hdfs://spnode1:9000//etl/runs/",
+                "run_dir": "s3a://spark-etl-demo/runs",
+                "spark_host_stage_dir": "/root/.spark_stage",
                 "ssh_config": {
                     "config": "{{artifacts.ssh_config}}",
                     "keys": {
@@ -37,7 +38,7 @@
             }
         }
     },
-    "deploy_base": "hdfs://spnode1:9000//etl/apps/",
+    "deploy_base": "s3a://spark-etl-demo/apps",
     "job_run_options": {
         "conf": {
             "spark.yarn.appMasterEnv.PYSPARK_PYTHON": "python3",

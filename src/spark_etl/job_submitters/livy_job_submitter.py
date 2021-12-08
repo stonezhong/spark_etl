@@ -5,6 +5,7 @@ import subprocess
 from urllib.parse import urlparse
 import uuid
 import tempfile
+from copy import deepcopy
 
 from requests.auth import HTTPBasicAuth
 import requests
@@ -14,6 +15,8 @@ from spark_etl.utils import CLIHandler
 from spark_etl.core import ClientChannelInterface
 from spark_etl.exceptions import SparkETLLaunchFailure
 from spark_etl.ssh_config import SSHConfig
+
+from spark_etl.core.hdfs_client import HDFSClientChannel
 
 #################################################################################
 # For ssh, we allow user to specify their own configs
@@ -31,99 +34,6 @@ from spark_etl.ssh_config import SSHConfig
 #################################################################################
 
 
-
-class ClientChannel(ClientChannelInterface):
-    def __init__(self, bridge, stage_dir, run_dir, run_id, ssh_config):
-        self.bridge = bridge        # the bridge server's name which we can ssh to
-        self.stage_dir = stage_dir  # stage_dir is on bridge
-        self.run_dir = run_dir      # base dir for all runs, e.g. hdfs:///beta/etl/runs
-        self.run_id  = run_id       # string, unique id of the run
-        self.ssh_config = ssh_config
-
-
-    def _create_stage_dir(self):
-        # We are using stage_dir instead of temp dir to stage objects on bridge
-        # the reason is, many cases temp dir is in memory and cannot hold large object
-        self.ssh_config.execute(self.bridge, [
-            "mkdir", "-p", os.path.join(self.stage_dir, self.run_id)
-        ])
-
-
-    def read_json(self, name):
-        """read a json object from HDFS run dir with specific name
-        """
-        self._create_stage_dir()
-        self.ssh_config.execute(self.bridge, [
-            "hdfs", "dfs", "-copyToLocal", "-f",
-            os.path.join(self.run_dir, self.run_id, name),
-            os.path.join(self.stage_dir, self.run_id, name)
-        ])
-
-        try:
-            stage_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
-            stage_file.close()
-            self.ssh_config.scp(
-                os.path.join(
-                    f"{self.bridge}:{self.stage_dir}", self.run_id, name
-                ),
-                stage_file.name
-            )
-            with open(stage_file.name) as f:
-                return json.load(f)
-        finally:
-            os.remove(stage_file.name)
-
-
-    def has_json(self, name):
-        """check if a file with specific name exist or not in the HDFS run dir
-        """
-        exit_code = self.ssh_config.execute(self.bridge, [
-            "hdfs", "dfs", "-test", "-f",
-            os.path.join(self.run_dir, self.run_id, name)
-        ], error_ok=True)
-        if exit_code == 0:
-            return True
-        if exit_code == 1:
-            return False
-        raise Exception(f"Unrecognized exit code: {exit_code}")
-
-
-    def write_json(self, name, payload):
-        """write a json object to HDFS run dir with specific name
-        """
-        self._create_stage_dir()
-
-        stage_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
-        stage_file.close()
-        try:
-            with open(stage_file.name, "wt") as f:
-                json.dump(payload, f)
-
-            # copy over to bridge at stage directory
-            self.ssh_config.scp(
-                stage_file.name,
-                os.path.join(
-                    f"{self.bridge}:{self.stage_dir}", self.run_id, name
-                )
-            )
-
-            # then upload to HDFS, -f for overwrite if exist
-            self.ssh_config.execute(self.bridge, [
-                "hdfs", "dfs", "-copyFromLocal", "-f",
-                os.path.join(self.stage_dir, self.run_id, name),
-                os.path.join(self.run_dir, self.run_id, name)
-            ])
-        finally:
-            os.remove(stage_file.name)
-
-
-    def delete_json(self, name):
-        self.ssh_config.execute(self.bridge, [
-            "hdfs", "dfs", "-rm",
-            os.path.join(self.run_dir, self.run_id, name)
-        ])
-
-
 class LivyJobSubmitter(AbstractJobSubmitter):
     def __init__(self, config):
         super(LivyJobSubmitter, self).__init__(config)
@@ -133,7 +43,15 @@ class LivyJobSubmitter(AbstractJobSubmitter):
     # args.conf is the spark job config
     # args is arguments need to pass to the main entry
     def run(self, deployment_location, options={}, args={}, handlers=[], on_job_submitted=None, cli_mode=False):
+        run_id = str(uuid.uuid4())
+        run_dir = self.config['run_dir']
+        # run dir has to be a URI since it shoud be reachable from both
+        # client and spark cluster
+        run_home_dir = os.path.join(run_dir, run_id)
+
         bridge = self.config["bridge"]
+        stage_dir = self.config['stage_dir']
+        spark_host_stage_dir = self.config['spark_host_stage_dir']
         self.ssh_config.generate()
         tunnel = None
         local_livy_port = None
@@ -160,25 +78,17 @@ class LivyJobSubmitter(AbstractJobSubmitter):
             o = urlparse(deployment_location)
             if o.scheme not in ('hdfs', 's3', 's3a'):
                 raise SparkETLLaunchFailure("deployment_location must be in hdfs, s3 or s3a")
-
-
-            stage_dir = self.config['stage_dir']
-            run_dir = self.config['run_dir']
-
-            # create run dir
-            run_id = str(uuid.uuid4())
-            self.ssh_config.execute(bridge, [
-                "hdfs", "dfs", "-mkdir", "-p",
-                os.path.join(run_dir, run_id)
-            ])
-
-            client_channel = ClientChannel(
+            
+            client_channel = HDFSClientChannel(
                 bridge, stage_dir, run_dir, run_id,
                 ssh_config = self.ssh_config
             )
+            # create run home dir
+            self.ssh_config.execute(bridge, [
+                "hdfs", "dfs", "-mkdir", "-p", run_home_dir
+            ])
+
             client_channel.write_json("input.json", args)
-
-
             headers = {
                 "Content-Type": "application/json",
                 "X-Requested-By": "root",
@@ -191,7 +101,8 @@ class LivyJobSubmitter(AbstractJobSubmitter):
                 'args': [
                     '--run-id', run_id,
                     '--run-dir', os.path.join(run_dir, run_id),
-                    '--lib-zip', os.path.join(deployment_location, "lib.zip")
+                    '--lib-zip', os.path.join(deployment_location, "lib.zip"),
+                    '--spark-host-stage-dir', spark_host_stage_dir,
                 ]
             }
 
@@ -204,7 +115,7 @@ class LivyJobSubmitter(AbstractJobSubmitter):
                 livy_service_url = f"{livy_cfg_protocol}://{livy_cfg_host}:{livy_cfg_port}/"
 
             print(f"Livy: {livy_service_url}")
-            # print(json.dumps(config))
+            # print(json.dumps(config, indent=4, separators=(',', ': ')))
             if livy_cfg_username is None:
                 r = requests.post(
                     os.path.join(livy_service_url, "batches"),

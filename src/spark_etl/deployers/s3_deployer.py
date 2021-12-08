@@ -5,6 +5,7 @@ import json
 from .abstract_deployer import AbstractDeployer
 from spark_etl import Build
 from spark_etl.exceptions import SparkETLDeploymentFailure
+import spark_etl
 
 import boto3
 
@@ -47,12 +48,15 @@ class S3Deployer(AbstractDeployer):
             local_filename = os.path.join(build.build_dir, artifact)
             object_name = os.path.join(s3_dirname, artifact)
 
-            print(f"{local_filename}  ==> {object_name}")
+            target = os.path.join(deployment_location, artifact)
+            print(f"{local_filename}  ==> {target}")
             s3_client.upload_file(local_filename, bucket_name, object_name)
 
+        spark_etl_dir = os.path.dirname(os.path.abspath(spark_etl.__file__))
 
-        local_filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'job_loader.py')
+        local_filename = os.path.join(spark_etl_dir, 'core', 'loader_util', 'resources', 'job_loader.py')
         object_name = os.path.join(s3_dirname, "job_loader.py")
-        print(f"{local_filename}  ==> {object_name}")
+        target = os.path.join(deployment_location, "job_loader.py")
+        print(f"{local_filename}  ==> {target}")
         s3_client.upload_file(local_filename, bucket_name, object_name)
 
