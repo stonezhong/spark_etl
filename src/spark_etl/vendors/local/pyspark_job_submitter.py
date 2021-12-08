@@ -1,37 +1,13 @@
 import json
 import os
 import uuid
-import tempfile
 import subprocess
 import json
 import time
+from urllib.parse import urlparse
 
 from spark_etl.job_submitters import AbstractJobSubmitter
-from spark_etl.core import ClientChannelInterface
 from spark_etl.utils import CLIHandler
-
-class ClientChannel(ClientChannelInterface):
-    def __init__(self, run_dir, run_id):
-        self.run_dir = run_dir
-        self.run_id = run_id
-
-    def _get_json_path(self, name):
-        return os.path.join(self.run_dir, self.run_id, name)
-
-    def read_json(self, name):
-        with open(self._get_json_path(name), "r") as f:
-            return json.load(f)
-
-    def has_json(self, name):
-        return os.path.isfile(self._get_json_path(name))
-
-    def write_json(self, name, payload):
-        with open(self._get_json_path(name), "w") as f:
-            json.dump(payload, f)
-
-    def delete_json(self, name):
-        os.remove(self._get_json_path(name))
-
 
 class PySparkJobSubmitter(AbstractJobSubmitter):
     def __init__(self, config):
@@ -42,7 +18,6 @@ class PySparkJobSubmitter(AbstractJobSubmitter):
         #     "run_dir": "/home/stonezhong/spark-etl-lab/src/local-lake/runs",
         #     "enable_aws_s3": true,
         #     "aws_account": "~/.aws/account.json",
-        #     "aws_s3_buffer_dir": "/home/stonezhong/spark-etl-lab/src/local-lake/s3-buffer"
         # }
         # enable_aws_s3: set to True if you want to access AWS S3 buckets
         # aws_account: point to a json filename, the json file looks like below
@@ -50,56 +25,88 @@ class PySparkJobSubmitter(AbstractJobSubmitter):
         #     "aws_access_key_id": "***",
         #     "aws_secret_access_key": "***"
         # }
-        # aws_s3_buffer_dir: a temp dir for s3 buffered data
+        # If aws_account is missing, you need to provide both "aws_access_key_id" and "aws_secret_access_key"
         ####################################################################################
-
-
 
     def run(self, deployment_location, options={}, args={}, handlers=[], on_job_submitted=None, cli_mode=False):
         # version is already baked into deployment_location
-        # local submitter ignores handlers
+        # TODO: deal with handlers
         run_id  = str(uuid.uuid4())
         run_dir = self.config['run_dir']
-        app_dir = deployment_location
+        if run_dir.startswith("file://"):
+            run_dir = run_dir[7:]
+        run_home_dir = os.path.join(run_dir, run_id)
 
-        os.makedirs(os.path.join(run_dir, run_id))
+        enable_aws_s3 = self.config.get('enable_aws_s3', False)
+        if enable_aws_s3:
+            aws_account = self.config.get("aws_account")
+            if aws_account is None:
+                # set pass
+                aws_access_key_id = self.config["aws_access_key_id"]
+                aws_secret_access_key = self.config["aws_secret_access_key"]
+            else:
+                aws_account = os.path.expandvars(os.path.expanduser(aws_account))
+                with open(aws_account, "rt") as f:
+                    aws_account_content = json.load(f)
+                    aws_access_key_id = aws_account_content['aws_access_key_id']
+                    aws_secret_access_key = aws_account_content['aws_secret_access_key']
+
+        o = urlparse(run_dir)
+        if o.scheme in ("s3", "s3a"):
+            if not enable_aws_s3:
+                raise Exception("You need to set enable_aws_s3 to True since your run_dir in using s3")
+            from spark_etl.core.s3_client import S3ClientChannel
+            client_channel = S3ClientChannel(run_home_dir, aws_access_key_id, aws_secret_access_key)
+        elif o.scheme == "":
+            from spark_etl.core.local_client import LFSClientChannel
+            os.makedirs(run_home_dir)
+            client_channel = LFSClientChannel(run_home_dir)
+        else:
+            raise Exception(f"run_dir can only be in s3, s3a, file or a local file path")
 
         # generate input.json
-        with open(os.path.join(run_dir, run_id, 'input.json'), 'wt') as f:
-            json.dump(args, f)
-
-        client_channel = ClientChannel(run_dir, run_id)
+        client_channel.write_json("input.json", args)
 
         run_args = [
             "spark-submit",
         ]
-        enable_aws_s3 = self.config.get('enable_aws_s3', False)
+        run_args.extend([
+            "--py-files",
+            os.path.join(deployment_location, "app.zip")
+        ])
+
+        spark_host_stage_dir = os.path.join(os.environ["HOME"], ".pyspark")
+        s3_buffer_dir  = os.path.join(os.environ["HOME"], ".s3-buffer", run_id)
+
         if enable_aws_s3:
-            # spark will automatically download package
             run_args.extend([
-                "--packages",
-                "org.apache.hadoop:hadoop-aws:2.7.3"
+                "-c",
+                'spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem'
+            ])
+            run_args.extend([
+                "-c",
+                f'spark.hadoop.fs.s3a.buffer.dir={s3_buffer_dir}'
+            ])
+            run_args.extend([
+                "-c",
+                f'spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider'
+            ])
+            run_args.extend([
+                "-c",
+                f'spark.hadoop.fs.s3a.access.key={aws_access_key_id}'
+            ])
+            run_args.extend([
+                "-c",
+                f'spark.hadoop.fs.s3a.secret.key={aws_secret_access_key}'
             ])
 
         run_args.extend([
             os.path.join(deployment_location, "job_loader.py"),
             "--run-id", run_id,
-            "--run-dir", run_dir,
-            "--app-dir", app_dir
+            "--run-dir", run_home_dir,
+            '--lib-zip', os.path.join(deployment_location, "lib.zip"),
+            "--spark-host-stage-dir", spark_host_stage_dir
         ])
-
-        if enable_aws_s3:
-            run_args.append("--enable-aws-s3")
-            aws_s3_buffer_dir = self.config.get('aws_s3_buffer_dir')
-            if aws_s3_buffer_dir is not None:
-                aws_s3_buffer_dir = os.path.expandvars(os.path.expanduser(aws_s3_buffer_dir))
-                run_args.extend(['--aws-s3-buffer-dir', aws_s3_buffer_dir])
-
-
-        aws_account = self.config.get('aws_account')
-        if aws_account is not None:
-            aws_account = os.path.expandvars(os.path.expanduser(aws_account))
-            run_args.extend(['--aws-account', aws_account])
 
         myenv = os.environ.copy()
         myenv['SPARK_LOCAL_HOSTNAME'] = 'localhost'
@@ -129,5 +136,5 @@ class PySparkJobSubmitter(AbstractJobSubmitter):
             Exception(f"Job failed, exit_code = {exit_code}")
 
         print("Job completed successfully")
-        with open(os.path.join(run_dir, run_id, "result.json"), "r") as f:
-            return json.load(f)
+        result = client_channel.read_json("result.json")
+        return result

@@ -7,6 +7,7 @@ from .abstract_deployer import AbstractDeployer
 from spark_etl import Build
 from spark_etl.exceptions import SparkETLDeploymentFailure
 from spark_etl.ssh_config import SSHConfig
+import spark_etl
 
 
 class HDFSDeployer(AbstractDeployer):
@@ -32,19 +33,21 @@ class HDFSDeployer(AbstractDeployer):
 
             build = Build(build_dir)
 
+            src_file_loc = {}
             for artifact in build.artifacts:
-                self.ssh_config.scp(
-                    f"{build_dir}/{artifact}", f"{bridge}:{bridge_dir}/{artifact}"
-                )
+                src = os.path.join(build_dir, artifact)
+                dest = os.path.join(bridge_dir, artifact)
+                src_file_loc[artifact] = src
+                self.ssh_config.scp(src,f"{bridge}:{dest}")
 
             # copy job loader
-            job_loader_filename = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                'job_loader.py'
-            )
-            self.ssh_config.scp(job_loader_filename, f"{bridge}:{bridge_dir}/job_loader.py")
+            spark_etl_dir = os.path.dirname(os.path.abspath(spark_etl.__file__))
+            src = os.path.join(spark_etl_dir, 'core', 'loader_util', 'resources', 'job_loader.py')
+            src_file_loc['job_loader.py'] = src
+            dest = os.path.join(bridge_dir, 'job_loader.py')
+            self.ssh_config.scp(src, f"{bridge}:{dest}")
 
-            dest_location = f"{deployment_location}/{build.version}"
+            dest_location = os.path.join(deployment_location, build.version)
             self.ssh_config.execute(bridge, ["hdfs", "dfs", "-rm", "-r", dest_location], error_ok=True)
             self.ssh_config.execute(bridge, ["hdfs", "dfs", "-mkdir", "-p", dest_location])
 
@@ -52,8 +55,11 @@ class HDFSDeployer(AbstractDeployer):
             artifacts.extend(build.artifacts)
             artifacts.append("job_loader.py")
             for artifact in artifacts:
+                src = src_file_loc[artifact]
+                dest = os.path.join(dest_location, artifact)
+                print(f"{src}  ==> {dest}")
                 self.ssh_config.execute(bridge, [
-                    "hdfs", "dfs", "-copyFromLocal", f"{bridge_dir}/{artifact}", f"{dest_location}/{artifact}"
+                    "hdfs", "dfs", "-copyFromLocal", os.path.join(bridge_dir, artifact), dest
                 ])
 
             self.ssh_config.execute(bridge, ["rm", "-rf", bridge_dir])

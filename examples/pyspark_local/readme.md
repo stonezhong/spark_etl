@@ -1,7 +1,7 @@
-# In this demo, you will see
-* How to build data application
-* How to deploy data application on your dev machine using pyspark
-* How to run data application in pyspark
+# You will see following demos here
+* Build a data application
+* Deploy a data application to local filesystem
+* Run the data application using pyspark on your dev machine
     * The application create a data frame
     * The application save data frame to local filesystem
     * The application load data frame from local filesystem
@@ -24,8 +24,8 @@ python -m pip install pyspark
 etl -a build -p demo01
 ```
 * It build the application `demo01`
-* It uses configuration file `config.json`
-* Since `apps_dir=apps` in configuration, it will locate application `demo01` at direcotry `apps/demo01`
+* The config file is `config.json` unless specified by -c option
+* Since `apps_dir=apps` in config, it will locate application `demo01` at direcotry `apps/demo01`
 * Since `builds_dir=.builds` in configuration, build result will be in `.builds/demo01`
 
 
@@ -35,7 +35,7 @@ etl -a deploy -p demo01 -f main
 ```
 * It deploy the application `demo01`
 * It uses profile `main`
-* Since `profiles_dir=.profiles` in configuration, it will load profile `main` from file `.profiles/main.json`
+* Since `profiles_dir=.profiles` in `config.json`, it will load profile `main` from file `.profiles/main.json`
 * It will deploy to directory `.deployments/demo01/1.0.0.0`, since `deploy_base=.deployments` in profile `main`, and application version is `1.0.0.0` from it's manifest file.
 
 # To run
@@ -43,5 +43,5 @@ etl -a deploy -p demo01 -f main
 etl -a run -p demo01 -f main --run-args input.json
 ```
 * It run the application `demo01`, using profile `main`
-* It passes the content of `input.json` as parameter to the app
+* It passes the content of `input.json` as parameter to the data application
 * based on the cmds in `input.json`, it will save parquet to `.data/trade.parquet`.
