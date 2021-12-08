@@ -20,7 +20,8 @@
                 },
                 "bridge": "emr_bridge",
                 "stage_dir": "/home/hadoop/.stage",
-                "run_dir": "s3://spark-etl-demo/runs/",
+                "run_dir": "s3://spark-etl-demo/runs",
+                "spark_host_stage_dir": "/mnt/tmp/.spark_stage",
                 "ssh_config": {
                     "config": "{{artifacts.ssh_config}}",
                     "keys": {
@@ -30,7 +31,7 @@
             }
         }
     },
-    "deploy_base": "s3://spark-etl-demo/apps/",
+    "deploy_base": "s3://spark-etl-demo/apps",
     "job_run_options": {
         "conf": {
             "spark.yarn.appMasterEnv.PYSPARK_PYTHON": "python3",
