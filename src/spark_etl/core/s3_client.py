@@ -59,7 +59,7 @@ class S3ClientChannel(ClientChannelInterface):
     def delete_json(self, name):
         try:
             key = os.path.join(self.s3_dirname, name)
-            self.s3_client.delete_object(self.bucket_name, key)
+            self.s3_client.delete_object(Bucket=self.bucket_name, Key=key)
         except ClientError as e:
             if e.response['Error']['Code'] != "404":
                 raise

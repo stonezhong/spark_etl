@@ -6,6 +6,8 @@ import shutil
 import json
 from distutils.dir_util import copy_tree
 
+from spark_etl.version import VERSION
+
 @contextmanager
 def _act_in_dir(new_dir):
     current_dir = os.getcwd()
@@ -54,14 +56,22 @@ class Application:
         return tmpdir
 
     def _get_tmp_requirements(self, default_libs):
+        saw_saprk_etl = False
         with tempfile.NamedTemporaryFile(mode="w+t", delete=False) as f:
             for line in default_libs:
+                if line.startswith("spark-etl=="):
+                    saw_saprk_etl = True
                 print(line, file=f)
             app_req_filename = os.path.join(self.location, "requirements.txt")
             if os.path.isfile(app_req_filename):
                 with open(app_req_filename, "rt") as arf:
                     for line in arf:
+                        if line.startswith("spark-etl=="):
+                            saw_saprk_etl = True
                         print(line, file=f)
+            if not saw_saprk_etl:
+                line=f"spark-etl=={VERSION}"
+                print(line, file=f)
             return f.name
 
 

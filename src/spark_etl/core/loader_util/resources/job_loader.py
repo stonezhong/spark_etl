@@ -155,6 +155,11 @@ def _bootstrap():
     parser.add_argument(
         "--spark-host-stage-dir", type=str, required=True, help="Spark Host Stage Directory",
     )
+    parser.add_argument(
+        "--cli-mode",
+        action="store_true",
+        help="Using cli mode?"
+    )
     args = parser.parse_args()
     spark = SparkSession.builder.appName(f"RunJob-{args.run_id}").getOrCreate()
 
@@ -173,6 +178,7 @@ def _bootstrap():
     print(f"run-dir             : {args.run_dir}")
     print(f"lib-zip             : {args.lib_zip}")
     print(f"stage-home-dir      : {stage_home_dir}")
+    print(f"cli-mode            : {args.cli_mode}")
     print("==============================================")
 
     sc = spark.sparkContext
@@ -195,6 +201,17 @@ def _bootstrap():
     input_args = server_channel.read_json(spark, "input.json")
 
     try:
+        if args.cli_mode:
+            entry = importlib.import_module("spark_etl.utils")
+            entry.cli_main(
+                spark, 
+                input_args, 
+                sysops={
+                    "install_libs": lambda : _install_libs(stage_home_dir),
+                    "channel": server_channel
+                }
+            )
+
         entry = importlib.import_module("main")
         result = entry.main(spark, input_args, sysops={
             "install_libs": lambda : _install_libs(stage_home_dir),

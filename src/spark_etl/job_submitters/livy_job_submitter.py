@@ -105,6 +105,8 @@ class LivyJobSubmitter(AbstractJobSubmitter):
                     '--spark-host-stage-dir', spark_host_stage_dir,
                 ]
             }
+            if cli_mode:
+                config['args'].append("--cli-mode")
 
             config.update(options)
             config.pop("display_name", None)  # livy job submitter does not support display_name
