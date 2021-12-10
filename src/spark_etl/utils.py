@@ -252,11 +252,16 @@ class CLIHandler:
 
                     print(f"\r{cli_wait_prompt[cli_wait_prompt_idx]}\r", end="")
                     cli_wait_prompt_idx = (cli_wait_prompt_idx + 1) % 4
+       
 
 
-def cli_main(spark, args, sysops={}):
+def cli_main(spark, input_args, sysops={}):
     channel = sysops['channel']
-    console = PySparkConsole(locals={'spark': spark, 'sysops': sysops})
+    console = PySparkConsole(locals={
+        'spark': spark, 
+        'sysops': sysops, 
+        'input_args': input_args
+    })
 
     channel.write_json(
         spark,
@@ -387,4 +392,3 @@ def handle_server_ask(channel, handlers):
         }
     )
     return
-

@@ -107,6 +107,8 @@ class PySparkJobSubmitter(AbstractJobSubmitter):
             '--lib-zip', os.path.join(deployment_location, "lib.zip"),
             "--spark-host-stage-dir", spark_host_stage_dir
         ])
+        if cli_mode:
+            run_args.append("--cli-mode")
 
         myenv = os.environ.copy()
         myenv['SPARK_LOCAL_HOSTNAME'] = 'localhost'
