@@ -1,5 +1,0 @@
-Host emr
-    HostName 3.82.226.86
-    User hadoop
-    IdentityFile for-emr
-
