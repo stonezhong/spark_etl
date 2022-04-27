@@ -68,8 +68,6 @@ def main(spark, input_args, sysops={}):
         </td>
         <td>
             Use <a href="https://pypi.org/project/pyspark/">PySpark</a> package, fully compatible to other spark platform, allows you to test your pipeline in a single computer.
-* [Demo: Access Data on local filesystem](examples/pyspark_local/readme.md)
-* [Demo: Access Data on AWS S3](examples/pyspark_s3/readme.md)
         </td>
     </tr>
     <tr>
@@ -130,7 +128,8 @@ def main(spark, input_args, sysops={}):
 </table>
 
 # Demos
-* [Using Local pyspark](examples/pyspark_local/readme.md)
+* [Using local pyspark, access data on local disk](examples/pyspark_local/readme.md)
+* [Using local pyspark, access data on AWS S3](examples/pyspark_s3/readme.md)
 
 # APIs
 [pydocs for APIs](https://stonezhong.github.io/spark_etl/pydocs/spark_etl.html)
