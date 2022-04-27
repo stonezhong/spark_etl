@@ -1,23 +1,46 @@
-# You will see following demos here
-* Build a data application
-* Deploy a data application to local filesystem
-* Run the data application using pyspark on your dev machine
-    * The application create a data frame
-    * The application save data frame to local filesystem
-    * The application load data frame from local filesystem
-    * The application transforms data frame using SparkSQL
-    
+# Goal
+* Show a demo that build, deploy and run your spark application with pyspark
+
 # Before the experiment
-* Please setup virtual environment first, see [readme.md](../readme.md).
-* Make sure you have JRE installed. Here is an example on installing JRE on RedHat Linux.
+
+<details>
+<summary>Setup Python Virtual Environment</summary>
+
 ```bash
-# On RHEL 7
+mkdir .venv
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install pip setuptools --upgrade
+python -m pip install wheel
+python -m pip install spark-etl
+```
+</details>
+
+<details>
+<summary>Install JRE</summary>
+
+You can skip this if JRE is already installed.
+```bash
 sudo yum install java-1.8.0-openjdk
 ```
-* Install package `pyspark`
+</details>
+
+<details>
+<summary>Install pyspark</summary>
+
 ```bash
 python -m pip install pyspark
 ```
+</details>
+
+<details>
+<summary>check out demos</summary>
+
+```bash
+git clone https://github.com/stonezhong/spark_etl.git
+cd spark_etl/examples/pyspark_local
+```
+</details>
 
 # Build app
 ```bash
@@ -29,7 +52,7 @@ etl -a build -p demo01
 * Since `builds_dir=.builds` in configuration, build result will be in `.builds/demo01`
 
 
-# To deploy
+# Deploy app
 ```bash
 etl -a deploy -p demo01 -f main
 ```
@@ -38,10 +61,12 @@ etl -a deploy -p demo01 -f main
 * Since `profiles_dir=.profiles` in `config.json`, it will load profile `main` from file `.profiles/main.json`
 * It will deploy to directory `.deployments/demo01/1.0.0.0`, since `deploy_base=.deployments` in profile `main`, and application version is `1.0.0.0` from it's manifest file.
 
-# To run
+# Run app
 ```bash
 etl -a run -p demo01 -f main --run-args input.json
 ```
 * It run the application `demo01`, using profile `main`
 * It passes the content of `input.json` as parameter to the data application
 * based on the cmds in `input.json`, it will save parquet to `.data/trade.parquet`.
+* The application returns a dict `{"result": "ok"}`
+
