@@ -15,16 +15,16 @@
 ## Goal
 There are many public clouds provide managed Apache Spark as service, such as databricks, AWS EMR, Oracle OCI DataFlow, see the table below for a detailed list.
 
-However, the way to deploy Spark application and launch Spark application are incompatible between different cloud Spark platforms.
+However, the way to deploy Spark application and launch Spark application are incompatible among different cloud Spark platforms.
 
-Now with `spark-etl`, you can deploy and launch your Spark application in a standard way.
+spark-etl is a python package, provides a standard way for building, deploying and running your Spark application that supports various cloud spark platforms.
 
 ## Benefit
-Your application using `spark-etl` can be deployed and launched from different Spark providers without changing the source code. Please check out the demos in the tables below.
+Your application using `spark-etl` can be deployed and launched from different cloud spark platforms without changing the source code.
 
 ## Application
 An application is a python program. It contains:
-* A `main.py` file which contain the application entry
+* A `main.py` file which contains the application entry
 * A `manifest.json` file, which specify the metadata of the application.
 * A `requirements.txt` file, which specify the application dependency.
 
@@ -43,20 +43,10 @@ def main(spark, input_args, sysops={}):
 
 ## Build your application
 `etl -a build -c <config-filename> -p <application-name>`
-
-For details, please checkout examples below.
-
 ## Deploy your application
 `etl -a deploy -c <config-filename> -p <application-name> -f <profile-name>`
-
-For details, please checkout examples below.
-
 ## Run your application
 `etl -a run -c <config-filename> -p <application-name> -f <profile-name> --run-args <input-filename>`
-
-For details, please checkout examples below.
-
-
 ## Supported platforms
 <table>
     <tr>
@@ -139,8 +129,8 @@ For details, please checkout examples below.
     </tr>
 </table>
 
-
-
+# Demos
+* [Using Local pyspark](examples/pyspark_local/readme.md)
 
 # APIs
 [pydocs for APIs](https://stonezhong.github.io/spark_etl/pydocs/spark_etl.html)
