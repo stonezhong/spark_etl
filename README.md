@@ -108,7 +108,7 @@ def main(spark, input_args, sysops={}):
     <tr>
         <td>
             <img
-                src="https://cdn.app.compendium.com/uploads/user/e7c690e8-6ff9-102a-ac6d-e4aebca50425/d3598759-8045-4b7f-9619-0fed901a9e0b/File/a35b11e3f02caf5d5080e48167cf320c/1_xtt86qweroeeldhjroaaaq.png"
+                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRajQVuckGogS3c8Yxa4M-OPd7yFCyWSj4Cpg&usqp=CAU"
                 width="120px"
             />
         </td>
