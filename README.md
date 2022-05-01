@@ -6,6 +6,7 @@
     * [Deploy your application](#deploy_your_application)
     * [Run your application](#run_your_application)
     * [Supported platforms](#supported_platforms)
+* [Demos](#demos)
 * [APIs](#apis)
     * [Job Deployer](#job-deployer)
     * [Job Submitter](#job-submitter)
@@ -58,7 +59,6 @@ def main(spark, input_args, sysops={}):
         </td>
         <td>You setup your own Apache Spark Cluster.
 
-* [Demo: Access Data on HDFS](examples/livy_hdfs1/readme.md)
 * [Demo: Access Data on AWS S3](examples/livy_hdfs2/readme.md)
         </td>
     </tr>
@@ -130,6 +130,7 @@ def main(spark, input_args, sysops={}):
 # Demos
 * [Using local pyspark, access data on local disk](examples/pyspark_local/readme.md)
 * [Using local pyspark, access data on AWS S3](examples/pyspark_s3/readme.md)
+* [Using on-premise spark, access data on HDFS](examples/livy_hdfs1/readme.md)
 
 # APIs
 [pydocs for APIs](https://stonezhong.github.io/spark_etl/pydocs/spark_etl.html)
