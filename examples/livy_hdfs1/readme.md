@@ -50,7 +50,7 @@ etl -a deploy -p demo01 -f main
 * This command deploy the application `demo01`
 * It uses profile `main`
 * Since `profiles_dir=.profiles` in `config.json`, it will load profile `main` from file `.profiles/main.json`
-* It will deploy to directory `hdfs://spnode1:9000//etl/apps/demo01/1.0.0.0`, since `hdfs://spnode1:9000/etl/apps/` in profile `main`, and application version is `1.0.0.0` from it's manifest file.
+* It will deploy to directory `hdfs://spnode1:9000//etl/apps/demo01/1.0.0.0`, since `deploy_base` in profile `main`, and application version is `1.0.0.0` from it's manifest file.
 
 
 # Run app

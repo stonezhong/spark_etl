@@ -58,8 +58,6 @@ def main(spark, input_args, sysops={}):
             />
         </td>
         <td>You setup your own Apache Spark Cluster.
-
-* [Demo: Access Data on AWS S3](examples/livy_hdfs2/readme.md)
         </td>
     </tr>
     <tr>
@@ -131,6 +129,7 @@ def main(spark, input_args, sysops={}):
 * [Using local pyspark, access data on local disk](examples/pyspark_local/readme.md)
 * [Using local pyspark, access data on AWS S3](examples/pyspark_s3/readme.md)
 * [Using on-premise spark, access data on HDFS](examples/livy_hdfs1/readme.md)
+* [Using on-premise spark, access data on AWS S3](examples/livy_hdfs2/readme.md)
 
 # APIs
 [pydocs for APIs](https://stonezhong.github.io/spark_etl/pydocs/spark_etl.html)
