@@ -130,7 +130,8 @@ def main(spark, input_args, sysops={}):
 * [Using on-premise spark, access data on HDFS](examples/livy_hdfs1/readme.md)
 * [Using on-premise spark, access data on AWS S3](examples/livy_hdfs2/readme.md)
 * [Using AWS EMR's spark, access data on AWS S3](examples/aws_emr/readme.md)
-* [Using Oracle OCI's Dataflow with API key, access data on Object Storage](examples/aws_emr/readme.md)
+* [Using Oracle OCI's Dataflow with API key, access data on Object Storage](examples/oci_dataflow1/readme.md)
+* [Using Oracle OCI's Dataflow with instance principal, access data on Object Storage](examples/oci_dataflow2/readme.md)
 
 # APIs
 [pydocs for APIs](https://stonezhong.github.io/spark_etl/pydocs/spark_etl.html)

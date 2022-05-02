@@ -1,0 +1,6 @@
+{
+    "apps_dir": "apps",
+    "builds_dir": ".builds",
+    "profiles_dir": ".profiles",
+    "common_requirements": "common_requirements.txt"
+}

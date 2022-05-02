@@ -1,0 +1,36 @@
+{
+    "deployer": {
+        "class": "spark_etl.vendors.oracle.DataflowDeployer",
+        "kwargs": {
+            "config": {
+                "region": "us-ashburn-1",
+                "dataflow": {
+                    "compartment_id": "ocid1.compartment.oc1..aaaaaaaaxq5efno25dndoaltcitvtprfelpui3al3nul6bdmihc6sggbho5a",
+                    "driver_shape":"VM.Standard2.1",
+                    "executor_shape": "VM.Standard2.1",
+                    "num_executors": 1
+                }
+            }
+        }
+    },
+    "job_submitter": {
+        "class": "spark_etl.vendors.oracle.DataflowJobSubmitter",
+        "kwargs": {
+            "config": {
+                "region": "us-ashburn-1",
+                "run_dir": "oci://dataflow-runs@idrnu3akjpv5/spark-etl-lab/"
+            }
+        }
+    },
+    "deploy_base": "oci://dataflow-apps@idrnu3akjpv5/spark-etl-lab/",
+    "job_run_options": {
+        "conf": {
+            "spark.yarn.appMasterEnv.PYSPARK_PYTHON": "python3",
+            "spark.executorEnv.PYSPARK_PYTHON": "python3"
+        },
+        "driver_shape":"VM.Standard2.1",
+        "executor_shape": "VM.Standard2.1",
+        "num_executors": 1,
+        "display_name": "test dataflow"
+    }
+}
