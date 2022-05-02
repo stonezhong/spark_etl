@@ -22,7 +22,7 @@ python -m pip install oci-core
 
 ```bash
 git clone https://github.com/stonezhong/spark_etl.git
-cd spark_etl/examples/oci_dataflow1
+cd spark_etl/examples/oci_dataflow2
 ```
 </details>
 
