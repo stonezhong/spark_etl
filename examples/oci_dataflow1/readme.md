@@ -1,38 +1,67 @@
-# Demo hightlights
-* How to build data application
-* How to deploy data application
-* How to run data application in pyspark
-    * The app create a data frame
-    * The app save data frame to hdfs
-    * The app load data frame from hdfs
-    * The app transforms data frame using SparkSQL
+# Goal
+* Show a demo that build, deploy and run your spark application with Oracle OCI Dataflow spark cluster, with application deployed to OCI bucket
 
 # Before the experiment
-Please setup virtual environment first, see [readme.md](../readme.md).
-also make sure you have JRE 1.8 installed
 
-Make sure you have your ssh config correct in `.artifacts` directory
+<details>
+<summary>Setup Python Virtual Environment</summary>
+
+```bash
+mkdir .venv
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install pip setuptools --upgrade
+python -m pip install wheel
+python -m pip install spark-etl
+python -m pip install oci-core
+```
+</details>
+
+<details>
+<summary>check out demos</summary>
+
+```bash
+git clone https://github.com/stonezhong/spark_etl.git
+cd spark_etl/examples/oci_dataflow1
+```
+</details>
 
 # Build app
 ```bash
-etl -a build -c config.json -p demo01
+etl -a build -p demo01
 ```
-* This command build the application
-* The application name is `demo01` located at directory `apps/demo01`. 
-* Build result will be in `.builds/demo01`
+* It build the application `demo01`
+* The config file is `config.json` unless specified by -c option
+* Since `apps_dir=apps` in config, it will locate application `demo01` at direcotry `apps/demo01`
+* Since `builds_dir=.builds` in configuration, build result will be in `.builds/demo01`
 
+# Config OCI with API key
+<details>
+<summary>Setup OCI Config</summary>
 
-# To deploy
+You can change the config in profile `.profiles/main.json` if needed.
+
+* Your API key is stored in file `~/.oci/oci_api_key.pem`
+* Your API key fingerprint is `2b:3d:75:f3:00:10:60:32:94:9b:82:56:82:e2:c1:a4`
+* You are using dataflow in region `us-ashburn-1`
+* Your tenancy ID is `ocid1.tenancy.oc1..aaaaaaaax7td4zfyexbwdz3tvcgsolgtw5okcvmnzpjryfzfgpvoamk74t3a`
+* Your user ID is `ocid1.user.oc1..aaaaaaaa7w622vhkumwop4dasnbx2pfoluzlzojmjwuhim733hhd2vtaiqxq`
+</details>
+
+# Deploy app
 ```bash
-etl -a deploy -c config.json -p demo01 -f main
+etl -a deploy -p demo01 -f main
 ```
 * This command deploy the application `demo01`
-* The application `demo01` is deployed to hdfs at `hdfs://spnode1:9000//etl/apps/demo01/1.0.0.0`
+* It uses profile `main`
+* Since `profiles_dir=.profiles` in `config.json`, it will load profile `main` from file `.profiles/main.json`
+* It will deploy to directory `oci://dataflow-apps@idrnu3akjpv5/spark-etl-lab/apps/demo01/1.0.0.0`, since `deploy_base` in profile `main`, and application version is `1.0.0.0` from it's manifest file.
 
-# To run
+# Run app
 ```bash
-etl -a run -c config.json -p demo01 -f main --run-args input.json
+etl -a run -p demo01 -f main --run-args input.json
 ```
-* This command run the application `demo01`, using profile `.profiles/main.json`
-* It passes the content of `input.json` as parameter to the app
-* You can see files in your HDFS.
+* It run the application `demo01`, using profile `main`
+* It passes the content of `input.json` as parameter to the data application
+* based on the cmds in `input.json`, it will save parquet to `oci://spark-etl-lab@idrnu3akjpv5/data/trade.parquet`.
+* The application returns a dict `{"result": "ok"}`

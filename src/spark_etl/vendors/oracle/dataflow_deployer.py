@@ -13,6 +13,7 @@ from oci_core import get_os_client, get_df_client, os_upload, os_upload_json
 from spark_etl.deployers import AbstractDeployer
 from spark_etl import Build, SparkETLDeploymentFailure
 from .tools import check_response, remote_execute
+from spark_etl.misc_tools import read_textfile, get_filename
 
 def _save_json_temp(payload):
     # save a dict to temporary json file, and return filename
@@ -31,8 +32,7 @@ def get_job_loader(oci_config):
     if oci_config is not None:
         oci_cfg = dict(oci_config)
         key_file = oci_cfg.pop("key_file")
-        with open(key_file, "rt") as key_f:
-            oci_key = key_f.read()
+        oci_key = read_textfile(key_file)
 
     template = GenTemplate()
     if oci_config is None:
@@ -157,7 +157,7 @@ class DataflowDeployer(AbstractDeployer):
             )
             os_upload(
                 os_client,
-                oci_config['key_file'],
+                get_filename(oci_config['key_file']),
                 namespace,
                 bucket,
                 "oci_api_key.pem",
