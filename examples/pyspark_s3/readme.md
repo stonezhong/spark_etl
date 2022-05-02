@@ -48,11 +48,11 @@ python -m pip install boto3
 ```bash
 wget \
     https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.11.901/aws-java-sdk-bundle-1.11.901.jar \
-    -P .venv/lib64/python3.6/site-packages/pyspark/jars
+    -P `python3 -c "import site;print([p for p in site.getsitepackages() if p.endswith(('site-packages', 'dist-packages')) ][0])"`/pyspark/jars
 
 wget \
     https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.1/hadoop-aws-3.3.1.jar \
-    -P .venv/lib64/python3.6/site-packages/pyspark/jars
+    -P `python3 -c "import site;print([p for p in site.getsitepackages() if p.endswith(('site-packages', 'dist-packages')) ][0])"`/pyspark/jars
 ```
 </details>
 

@@ -3,7 +3,7 @@ import json
 import importlib
 import os
 import glob
-from jinja2 import Template
+from spark_etl.template import GenTemplate
 
 from spark_etl import Application, Build
 
@@ -62,14 +62,10 @@ class Config:
         return os.path.join(self.builds_dir, app_name)
 
     def get_profile(self, profile_name):
-        artifacts = load_artifacts(self.artifacts_dir)
         profile_filename = os.path.join(self.profiles_dir, f"{profile_name}.json")
-
-        with open(profile_filename, "rt") as cf:
-            profile_template_text = cf.read()
         
-        profile_template = Template(profile_template_text)
-        profile_text = profile_template.render(artifacts=artifacts)
+        template = GenTemplate()
+        profile_text = template.render(profile_filename)
 
         profile = json.loads(profile_text)
         return Profile(profile)
@@ -119,20 +115,6 @@ class Profile:
             kwargs  = job_submitter_config.get("kwargs", {})
             self._job_submitter = klass(*args, **kwargs)
         return self._job_submitter
-
-
-def load_artifacts(root_dir):
-    ret = {}
-    if not os.path.isdir(root_dir):
-        return ret
-    for filename in os.listdir(root_dir):
-        full_filename = os.path.join(root_dir, filename)
-        if os.path.isdir(full_filename):
-            ret[filename] = load_artifacts(full_filename)
-        else:
-            with open(full_filename, "rt") as f:
-                ret[filename] = json.dumps(f.read())[1:-1]
-    return ret
 
 
 def main():

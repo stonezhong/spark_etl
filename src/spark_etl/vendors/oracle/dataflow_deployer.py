@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 import json
 import tempfile
 
-from jinja2 import Template
+from spark_etl.template import GenTemplate
 
 import oci
 from oci_core import get_os_client, get_df_client, os_upload, os_upload_json
@@ -34,22 +34,21 @@ def get_job_loader(oci_config):
         with open(key_file, "rt") as key_f:
             oci_key = key_f.read()
 
-    with open(job_loader_filename, "rt") as f:
-        load_content = f.read()
-        template = Template(load_content)
-        if oci_config is None:
-            c = template.render(
-                use_instance_principle = True,
-            )
-        else:
-            c = template.render(
-                use_instance_principle = False,
-                oci_config_str = json.dumps(oci_cfg, indent=4),
-                oci_key = oci_key
-            )
-        with tempfile.NamedTemporaryFile(mode='w+t', delete=False) as f:
-            f.write(c)
-            return f.name
+    template = GenTemplate()
+    if oci_config is None:
+        c = template.render(job_loader_filename,
+            use_instance_principle = True,
+        )
+    else:
+        c = template.render(job_loader_filename,
+            use_instance_principle = False,
+            oci_config_str = json.dumps(oci_cfg, indent=4),
+            oci_key = oci_key
+        )
+
+    with tempfile.NamedTemporaryFile(mode='w+t', delete=False) as f:
+        f.write(c)
+        return f.name
 
 
 class DataflowDeployer(AbstractDeployer):

@@ -6,9 +6,9 @@
                 "bridge": "spnode1",
                 "stage_dir": "/root/.stage",
                 "ssh_config": {
-                    "config": "{{artifacts.ssh_config}}",
+                    "config": "{{'.artifacts/ssh_config'|file(json_encoded=True)}}",
                     "keys": {
-                        "home": "{{artifacts.ssh_keys.home}}"
+                        "home": "{{'.artifacts/ssh_keys/home'|file(json_encoded=True)}}"
                     }
                 }
             }
@@ -30,9 +30,9 @@
                 "run_dir": "hdfs://spnode1:9000/etl/runs",
                 "spark_host_stage_dir": "/root/.spark_stage",
                 "ssh_config": {
-                    "config": "{{artifacts.ssh_config}}",
+                    "config": "{{'.artifacts/ssh_config'|file(json_encoded=True)}}",
                     "keys": {
-                        "home": "{{artifacts.ssh_keys.home}}"
+                        "home": "{{'.artifacts/ssh_keys/home'|file(json_encoded=True)}}"
                     }
                 }
             }

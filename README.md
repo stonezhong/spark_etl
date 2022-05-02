@@ -82,7 +82,6 @@ def main(spark, input_args, sysops={}):
             />
         </td>
         <td>You host your spark cluster in <a href="https://aws.amazon.com/emr/">Amazon AWS EMR</a>
-* [Demo: Access Data on AWS S3](examples/aws_emr/readme.md)
         </td>
     </tr>
     <tr>
@@ -130,6 +129,7 @@ def main(spark, input_args, sysops={}):
 * [Using local pyspark, access data on AWS S3](examples/pyspark_s3/readme.md)
 * [Using on-premise spark, access data on HDFS](examples/livy_hdfs1/readme.md)
 * [Using on-premise spark, access data on AWS S3](examples/livy_hdfs2/readme.md)
+* [Using AWS EMR's spark, access data on AWS S3](examples/aws_emr/readme.md)
 
 # APIs
 [pydocs for APIs](https://stonezhong.github.io/spark_etl/pydocs/spark_etl.html)

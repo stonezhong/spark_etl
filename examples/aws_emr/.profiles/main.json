@@ -23,9 +23,9 @@
                 "run_dir": "s3://spark-etl-demo/runs",
                 "spark_host_stage_dir": "/mnt/tmp/.spark_stage",
                 "ssh_config": {
-                    "config": "{{artifacts.ssh_config}}",
+                    "config": "{{'.artifacts/ssh_config'|file(json_encoded=True)}}",
                     "keys": {
-                        "emr": "{{artifacts.ssh_keys.emr}}"
+                        "emr": "{{'.artifacts/ssh_keys/emr'|file(json_encoded=True)}}"
                     }
                 }
             }
