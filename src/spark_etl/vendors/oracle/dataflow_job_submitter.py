@@ -70,6 +70,9 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         o = urlparse(run_dir)
         if o.scheme != 'oci':
             raise SparkETLLaunchFailure("run_dir must be in OCI")
+        
+        self.run_id = None
+        self.oci_run_id = None
 
 
     @property
@@ -91,7 +94,8 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
             raise SparkETLLaunchFailure("deployment_location must be in OCI")
 
         run_dir = self.config.get('run_dir') or self.config.get('run_base_dir')
-        run_id = str(uuid.uuid4())
+
+        run_id = self.run_id if self.run_id is not None else str(uuid.uuid4())
 
         namespace = o.netloc.split('@')[1]
         bucket = o.netloc.split('@')[0]
@@ -108,38 +112,35 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
             run_dir,
             run_id
         )
-        client_channel.write_json("args.json", args)
-
-        o = urlparse(run_dir)
-        namespace = o.netloc.split('@')[1]
-        bucket = o.netloc.split('@')[0]
-        root_path = o.path[1:] # remove the leading "/"
-        os_upload_json(os_client, args, namespace, bucket, f"{root_path}/{run_id}/args.json")
-
         df_client = get_df_client(self.region, self.config.get("oci_config"))
-        crd_argv = {
-            'compartment_id': deployment['compartment_id'],
-            'application_id': deployment['application_id'],
-            'display_name' :options["display_name"],
-            'arguments': [
-                "--deployment-location", deployment_location,
-                "--run-id", run_id,
-                "--run-dir", os.path.join(run_dir, run_id),
-                "--app-region", self.region,
-            ],
-        }
-        for key in ['num_executors', 'driver_shape', 'executor_shape', 'configuration']:
-            if key in options:
-                crd_argv[key] = options[key]
 
-        create_run_details = oci.data_flow.models.CreateRunDetails(**crd_argv)
-        r = df_client.create_run(create_run_details=create_run_details)
-        check_response(r, lambda : SparkETLLaunchFailure("dataflow failed to run the application"))
-        run = r.data
-        oci_run_id = run.id
-        logger.info(f"Job launched, run_id = {run_id}, oci_run_id = {run.id}")
-        if on_job_submitted is not None:
-            on_job_submitted(run_id, vendor_info={'oci_run_id': run.id})
+        if self.run_id is None:
+            client_channel.write_json("args.json", args)
+            crd_argv = {
+                'compartment_id': deployment['compartment_id'],
+                'application_id': deployment['application_id'],
+                'display_name' :options["display_name"],
+                'arguments': [
+                    "--deployment-location", deployment_location,
+                    "--run-id", run_id,
+                    "--run-dir", os.path.join(run_dir, run_id),
+                    "--app-region", self.region,
+                ],
+            }
+            for key in ['num_executors', 'driver_shape', 'executor_shape', 'configuration']:
+                if key in options:
+                    crd_argv[key] = options[key]
+
+            create_run_details = oci.data_flow.models.CreateRunDetails(**crd_argv)
+            r = df_client.create_run(create_run_details=create_run_details)
+            check_response(r, lambda : SparkETLLaunchFailure("dataflow failed to run the application"))
+            run = r.data
+            oci_run_id = run.id
+            self.run_id = run_id
+            self.oci_run_id = oci_run_id
+            logger.info(f"Job launched, run_id = {run_id}, oci_run_id = {run.id}")
+            if on_job_submitted is not None:
+                on_job_submitted(run_id, vendor_info={'oci_run_id': run.id})
 
         cli_entered = False
         while True:
