@@ -94,6 +94,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         oci_run_id = None
         state_filename = options.get("state_filename")
         if state_filename is not None and os.path.isfile(state_filename):
+            logger.info(f"loading job state from {state_filename}")
             with open(state_filename, "rt") as f:
                 state = json.load(f)
                 run_id = state.get("run_id")
@@ -104,7 +105,6 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
             oci_run_id = None
         else:                         # we are resuming an existing job
             logger.info(f"run_id provided: {run_id}")
-            oci_run_id = options.get("resume", {}).get("oci_run_id")
             logger.info(f"oci_run_id = {oci_run_id}")
             assert oci_run_id is not None
 
@@ -155,12 +155,12 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
             logger.info(f"Job launched, run_id = {run_id}, oci_run_id = {run.id}")
             
             if state_filename is not None:
-                os.path.makedirs(
+                os.makedirs(
                     str(Path(state_filename).parent.absolute()),
                     exist_ok=True
                 )
                 with open(state_filename, "wt") as f:
-                    json.dump({"run_id": run_id, "oci_run_id": oci_run_id}, state_filename)
+                    json.dump({"run_id": run_id, "oci_run_id": oci_run_id}, f)
 
             if on_job_submitted is not None:
                 on_job_submitted(run_id, vendor_info={'oci_run_id': run.id})
@@ -172,7 +172,7 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
                 df_client = get_df_client(self.region, self.config.get("oci_config"))
                 df_client_time = datetime.utcnow()
             time.sleep(10)
-            r = df_client.get_run(run_id=run.id)
+            r = df_client.get_run(run_id=oci_run_id)
             check_response(r, lambda : SparkETLGetStatusFailure("dataflow failed to get run status"))
             run = r.data
             logger.info(f"Status: {run.lifecycle_state}")
