@@ -1,17 +1,16 @@
 import logging
 logger = logging.getLogger(__name__)
 
-import json
 from urllib.parse import urlparse
 import time
 import uuid
 from datetime import datetime, timedelta
 import os
-from termcolor import colored, cprint
-import readline
+from pathlib import Path
+import json
 
 import oci
-from oci_core import get_os_client, get_df_client, os_upload, os_upload_json, os_download, os_download_json, \
+from oci_core import get_os_client, get_df_client, os_upload_json, os_download_json, \
     os_has_object, os_delete_object
 
 from spark_etl.job_submitters import AbstractJobSubmitter
@@ -70,9 +69,6 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         o = urlparse(run_dir)
         if o.scheme != 'oci':
             raise SparkETLLaunchFailure("run_dir must be in OCI")
-        
-        self.run_id = None
-        self.oci_run_id = None
 
 
     @property
@@ -93,9 +89,26 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         if o.scheme != 'oci':
             raise SparkETLLaunchFailure("deployment_location must be in OCI")
 
-        run_dir = self.config.get('run_dir') or self.config.get('run_base_dir')
+        # try to load run_id and oci_run_id from state file
+        run_id = None
+        oci_run_id = None
+        state_filename = options.get("state_filename")
+        if state_filename is not None and os.path.isfile(state_filename):
+            logger.info(f"loading job state from {state_filename}")
+            with open(state_filename, "rt") as f:
+                state = json.load(f)
+                run_id = state.get("run_id")
+                oci_run_id = state.get("oci_run_id")
+        if run_id is None:            # we are launching a new job
+            run_id = str(uuid.uuid4())
+            logger.info(f"run_id generated: {run_id}")
+            oci_run_id = None
+        else:                         # we are resuming an existing job
+            logger.info(f"run_id provided: {run_id}")
+            logger.info(f"oci_run_id = {oci_run_id}")
+            assert oci_run_id is not None
 
-        run_id = self.run_id if self.run_id is not None else str(uuid.uuid4())
+        run_dir = self.config.get('run_dir') or self.config.get('run_base_dir')
 
         namespace = o.netloc.split('@')[1]
         bucket = o.netloc.split('@')[0]
@@ -112,44 +125,60 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
             run_dir,
             run_id
         )
-        df_client = get_df_client(self.region, self.config.get("oci_config"))
-
-        if self.run_id is None:
+        if oci_run_id is None:
+            # only upload job args if we want to run job, in the resume case, do not upload
             client_channel.write_json("args.json", args)
-            crd_argv = {
-                'compartment_id': deployment['compartment_id'],
-                'application_id': deployment['application_id'],
-                'display_name' :options["display_name"],
-                'arguments': [
-                    "--deployment-location", deployment_location,
-                    "--run-id", run_id,
-                    "--run-dir", os.path.join(run_dir, run_id),
-                    "--app-region", self.region,
-                ],
-            }
-            for key in ['num_executors', 'driver_shape', 'executor_shape', 'configuration']:
-                if key in options:
-                    crd_argv[key] = options[key]
 
+        df_client = get_df_client(self.region, self.config.get("oci_config"))
+        df_client_time = datetime.utcnow()
+        crd_argv = {
+            'compartment_id': deployment['compartment_id'],
+            'application_id': deployment['application_id'],
+            'display_name' :options["display_name"],
+            'arguments': [
+                "--deployment-location", deployment_location,
+                "--run-id", run_id,
+                "--run-dir", os.path.join(run_dir, run_id),
+                "--app-region", self.region,
+            ],
+        }
+        for key in ['num_executors', 'driver_shape', 'executor_shape', 'configuration']:
+            if key in options:
+                crd_argv[key] = options[key]
+
+        if oci_run_id is None:
             create_run_details = oci.data_flow.models.CreateRunDetails(**crd_argv)
             r = df_client.create_run(create_run_details=create_run_details)
             check_response(r, lambda : SparkETLLaunchFailure("dataflow failed to run the application"))
             run = r.data
             oci_run_id = run.id
-            self.run_id = run_id
-            self.oci_run_id = oci_run_id
             logger.info(f"Job launched, run_id = {run_id}, oci_run_id = {run.id}")
+            
+            if state_filename is not None:
+                os.makedirs(
+                    str(Path(state_filename).parent.absolute()),
+                    exist_ok=True
+                )
+                with open(state_filename, "wt") as f:
+                    json.dump({"run_id": run_id, "oci_run_id": oci_run_id}, f)
+
             if on_job_submitted is not None:
                 on_job_submitted(run_id, vendor_info={'oci_run_id': run.id})
+            
 
         cli_entered = False
         while True:
+            if datetime.utcnow() - df_client_time >= timedelta(hours=1):
+                df_client = get_df_client(self.region, self.config.get("oci_config"))
+                df_client_time = datetime.utcnow()
             time.sleep(10)
-            r = df_client.get_run(run_id=run.id)
+            r = df_client.get_run(run_id=oci_run_id)
             check_response(r, lambda : SparkETLGetStatusFailure("dataflow failed to get run status"))
             run = r.data
             logger.info(f"Status: {run.lifecycle_state}")
             if run.lifecycle_state in ('FAILED', 'SUCCEEDED', 'CANCELED'):
+                if state_filename is not None and os.path.isfile(state_filename):
+                    os.remove(state_filename)
                 break
             handle_server_ask(client_channel, handlers)
 
