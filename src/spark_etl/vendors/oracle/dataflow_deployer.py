@@ -59,6 +59,8 @@ class DataflowDeployer(AbstractDeployer):
         #   compartment_id: the compartment we want to have the dataflow app
         #   driver_shape
         #   executor_shape
+        #   (optional) driver_shape_config
+        #   (optional) executor_shape_config
         #   num_executors
         #   spark_version
 
@@ -87,6 +89,8 @@ class DataflowDeployer(AbstractDeployer):
             compartment_id=dataflow['compartment_id'],
             display_name=display_name,
             driver_shape=dataflow['driver_shape'],
+            driver_shape_config=dataflow.get('driver_shape_config'),
+            executor_shape_config=dataflow.get('executor_shape_config'),
             executor_shape=dataflow['executor_shape'],
             num_executors=dataflow['num_executors'],
             spark_version=dataflow.get("spark_version", "2.4.4"),
