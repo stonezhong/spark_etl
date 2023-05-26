@@ -84,6 +84,8 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
         #     executor_shape    : string
         #     lib_url_duration  : number (repre the number of minutes)
         #     on_job_submitted  : callback, on_job_submitted(run_id, vendor_info={'oci_run_id': 'xxxyyy'})
+        #     driver_shape_config
+        #     executor_shape_config
 
         o = urlparse(deployment_location)
         if o.scheme != 'oci':
@@ -142,7 +144,14 @@ class DataflowJobSubmitter(AbstractJobSubmitter):
                 "--app-region", self.region,
             ],
         }
-        for key in ['num_executors', 'driver_shape', 'executor_shape', 'configuration']:
+        for key in [
+            'num_executors', 
+            'driver_shape', 
+            'executor_shape', 
+            'driver_shape_config', 
+            'executor_shape_config', 
+            'configuration'
+        ]:
             if key in options:
                 crd_argv[key] = options[key]
 
