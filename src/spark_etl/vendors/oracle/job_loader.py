@@ -205,20 +205,10 @@ def _bootstrap():
     # Load application
     spark = SparkSession.builder.appName("RunJob").getOrCreate()
     sc = spark.sparkContext
-    sc.addPyFile(f"{args.deployment_location}/app.zip")
-    sc.addFile(f"{args.deployment_location}/lib.zip")
-    print("Application loaded")
 
     # The archive file goes into /opt/dataflow
     # Load python libraries
     current_dir = os.getcwd()
-    lib_dir = os.path.join(current_dir, 'python_libs')
-    os.mkdir(lib_dir)
-    lib_zip = SparkFiles.get("lib.zip")
-    subprocess.call([
-        'unzip', "-qq", lib_zip, "-d", lib_dir
-    ])
-    sys.path.insert(0, lib_dir)
 
     run_id = args.run_id
     run_dir = args.run_dir
@@ -228,7 +218,6 @@ def _bootstrap():
 
     entry = importlib.import_module("main")
     result = entry.main(spark, xargs, sysops={
-        "install_libs": lambda : _install_libs(run_id),
         "ask": Asker(run_dir, args.app_region),
         "channel": server_channel
     })

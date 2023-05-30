@@ -75,7 +75,7 @@ class Application:
             return f.name
 
 
-    def build(self, destination, default_libs=[]):
+    def build(self, destination, default_libs=[], build_libs=True):
         """
         Build the application, it generates the necessary artifacts for the application including:
             app.zip         -- the archive for the application code
@@ -96,23 +96,24 @@ class Application:
         os.makedirs(destination, exist_ok=True)
         build_stage_dir = tempfile.mkdtemp()
 
-        venv_dir = self._create_venv()
+        if build_libs:
+            venv_dir = self._create_venv()
 
-        lib_dir = os.path.join(build_stage_dir, "lib")
-        os.mkdir(lib_dir)
-        tmp_requirements = self._get_tmp_requirements(default_libs)
-        subprocess.check_call([
-            os.path.join(venv_dir, "bin", "python"),
-            "-m", "pip",
-            "install", "-r", tmp_requirements,
-            "-t", lib_dir
-        ])
-        os.remove(tmp_requirements)
+            lib_dir = os.path.join(build_stage_dir, "lib")
+            os.mkdir(lib_dir)
+            tmp_requirements = self._get_tmp_requirements(default_libs)
+            subprocess.check_call([
+                os.path.join(venv_dir, "bin", "python"),
+                "-m", "pip",
+                "install", "-r", tmp_requirements,
+                "-t", lib_dir
+            ])
+            os.remove(tmp_requirements)
 
-        # generate archive for lib
-        lib_filename = os.path.join(build_stage_dir, 'lib.zip')
-        with _act_in_dir(lib_dir):
-            subprocess.run(['zip', "-r", lib_filename, "."])
+            # generate archive for lib
+            lib_filename = os.path.join(build_stage_dir, 'lib.zip')
+            with _act_in_dir(lib_dir):
+                subprocess.run(['zip', "-r", lib_filename, "."])
 
         # generate archive for app
         app_filename = os.path.join(build_stage_dir, 'app.zip')
@@ -122,7 +123,8 @@ class Application:
         for filename in ["main.py", "manifest.json", "lib.zip", "app.zip"]:
             _delete_file_if_exist(os.path.join(destination, filename))
 
-        shutil.copyfile(lib_filename, os.path.join(destination, 'lib.zip'))
+        if build_libs:
+            shutil.copyfile(lib_filename, os.path.join(destination, 'lib.zip'))
         shutil.copyfile(app_filename, os.path.join(destination, 'app.zip'))
         shutil.copyfile(
             os.path.join(self.location, "manifest.json"),
@@ -132,5 +134,6 @@ class Application:
             os.path.join(self.location, "main.py"),
             os.path.join(destination, 'main.py')
         )
-        shutil.rmtree(venv_dir)
+        if build_libs:
+            shutil.rmtree(venv_dir)
         shutil.rmtree(build_stage_dir)

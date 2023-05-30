@@ -120,6 +120,11 @@ class DataflowDeployer(AbstractDeployer):
         # Data flow want to call python lib python.zip
         os_client = get_os_client(self.region, config=self.config.get("oci_config"))
         for artifact in build.artifacts:
+            local_filename = f"{build_dir}/{artifact}"
+            if artifact == "lib.zip" and not os.path.isfile(local_filename):
+                # user might choose not build lib.zip in some cases
+                # so do not blow up in case lib.zip does not exist
+                continue
             os_upload(
                 os_client,
                 f"{build_dir}/{artifact}",
