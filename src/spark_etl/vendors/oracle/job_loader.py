@@ -1,21 +1,16 @@
 import argparse
 import importlib
 import os
-import io
-import errno
-import subprocess
-import sys
 import uuid
 import json
 from urllib.parse import urlparse
 import tempfile
 import time
 from datetime import datetime, timedelta
-from contextlib import redirect_stdout, redirect_stderr
 import code
 import random
 
-from pyspark.sql import SparkSession, SQLContext, Row
+from pyspark.sql import SparkSession
 from pyspark import SparkFiles
 
 {% if use_instance_principle %}
@@ -85,39 +80,6 @@ def get_server_channel(region, run_dir):
     
     return ServerChannel(region, run_dir)
 
-# lib installer
-def _install_libs(run_id):
-    current_dir = os.getcwd()
-    base_dir    = os.path.join(current_dir, run_id)
-    lib_dir     = os.path.join(base_dir, 'python_libs')
-    lib_zip     = SparkFiles.get("lib.zip")
-    lock_name   = os.path.join(base_dir, '__lock__')
-
-    os.makedirs(base_dir, exist_ok=True)
-
-    for i in range(0, 100):
-        try:
-            lock_fh = os.open(lock_name, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.close(lock_fh)
-            try:
-                if not os.path.isdir(lib_dir):
-                    print("_install_libs: install lib starts")
-                    os.makedirs(lib_dir)
-                    subprocess.check_call(['unzip', "-qq", lib_zip, "-d", lib_dir])
-                    print("_install_libs: install lib done")
-                if lib_dir not in sys.path:
-                    print(f"_install_libs: add {lib_dir} path")
-                    sys.path.insert(0, lib_dir)
-                return
-            finally:
-                os.remove(lock_name)
-        except OSError as e:
-            if e.errno == errno.EEXIST:
-                time.sleep(random.randint(1, 10))
-                continue
-            raise
-
-    raise Exception("Failed to install libraries!")
 
 class Asker:
     def __init__(self, run_dir, app_region):
